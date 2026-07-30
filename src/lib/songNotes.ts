@@ -33,6 +33,27 @@ export function getWords(songId: string): string {
 
 export const getServerWords = () => "";
 
+const PREFIX = "guitar8w:words:";
+
+/** Everything you've written, as a JSON backup you keep yourself. */
+export function exportAllWords(): string {
+  const all: Record<string, string> = {};
+  if (typeof window !== "undefined") {
+    try {
+      for (let i = 0; i < window.localStorage.length; i++) {
+        const key = window.localStorage.key(i);
+        if (key?.startsWith(PREFIX)) {
+          all[key.slice(PREFIX.length)] = window.localStorage.getItem(key) ?? "";
+        }
+      }
+    } catch {
+      // storage unavailable — hand back whatever this session has in memory
+      for (const [id, value] of cache) all[id] = value;
+    }
+  }
+  return JSON.stringify(all, null, 2);
+}
+
 export function setWords(songId: string, value: string): void {
   cache.set(songId, value);
   try {

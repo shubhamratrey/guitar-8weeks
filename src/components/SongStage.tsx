@@ -91,12 +91,10 @@ export function SongStage({ song }: { song: Song }) {
           )}
         </div>
 
-        {/* words you type yourself, for anything we can't ship lyrics for */}
-        {!song.open && (
-          <div className="mt-4">
-            <SongWords songId={song.id} />
-          </div>
-        )}
+        {/* words you supply yourself, since the app can't ship lyrics */}
+        <div className="mt-4">
+          <SongWords songId={song.id} title={song.title} />
+        </div>
       </div>
     </div>
   );
