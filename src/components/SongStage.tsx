@@ -54,6 +54,19 @@ export function SongStage({ song }: { song: Song }) {
           </p>
         )}
 
+        {/* Say plainly when a chart hasn't been checked against the recording. */}
+        {!song.open && !song.verified && song.loop.length > 0 && (
+          <div className="mt-4 rounded-md border border-heat/40 bg-heat/[0.06] px-3.5 py-3">
+            <p className="text-[12.5px] font-semibold text-heat">Chart not verified</p>
+            <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted">
+              These are common beginner shapes for this song, not a checked transcription.
+              The key, the capo position or the chords themselves may be wrong. Play it
+              against the recording before you trust it — and use the words box below to
+              note what it actually should be.
+            </p>
+          </div>
+        )}
+
         {song.soloScale && (
           <section className="mt-5 space-y-2.5">
             <div>

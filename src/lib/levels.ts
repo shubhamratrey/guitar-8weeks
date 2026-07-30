@@ -17,7 +17,7 @@ export const LEVELS: { id: Level; label: string; blurb: string }[] = [
   {
     id: "advanced",
     label: "Advanced",
-    blurb: "Faster, busier right hand, full voicings",
+    blurb: "Full tempo and voicings, no simplifications",
   },
 ];
 
@@ -90,20 +90,14 @@ export function arrangeFor(song: Song, level: Level): Arrangement {
   }
 
   if (level === "advanced") {
-    // Busier than whatever the song already asks for.
-    const denser = picked
-      ? song.strum
-      : plan?.kind === "strum" && plan.strokes.includes("U")
-        ? STRUM.sixteenths
-        : STRUM.funk;
-
+    // Deliberately NOT a busier strum. Density is a property of the song, not of
+    // the player's skill — sixteenths over a ballad is just the wrong song. What
+    // gets harder is the voicings and the tempo.
     return {
       bpm,
-      strum: denser,
+      strum: song.strum,
       loop: song.loop.map((chord) => FULLER[chord] ?? chord),
-      hint: song.score
-        ? `Same notes at ${bpm} bpm. If that's comfortable, push the tempo further yourself.`
-        : `${bpm} bpm with a busier right hand and the full voicings. Try it with barre shapes further up the neck too.`,
+      hint: `${bpm} bpm with the full voicings and no substitutions. Try it with barre shapes further up the neck too.`,
     };
   }
 

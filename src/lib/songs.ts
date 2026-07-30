@@ -29,6 +29,12 @@ export interface Song {
   score?: Score;
   /** True when the piece is public domain, traditional, or original to the app. */
   open?: boolean;
+  /**
+   * Set only once a chart has actually been checked against the recording.
+   * Everything else is a common beginner version and may well be in the wrong
+   * key or use the wrong voicings — the UI says so rather than pretending.
+   */
+  verified?: boolean;
   /** Suggested strumming or picking approach. */
   strum?: string;
   /** Sensible starting tempo for playing along. */
