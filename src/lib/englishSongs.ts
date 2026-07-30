@@ -1,3 +1,4 @@
+import { STRUM } from "./strum";
 import type { Song } from "./songs";
 
 /**
@@ -9,12 +10,13 @@ import type { Song } from "./songs";
  * anything here against the record before treating it as definitive.
  */
 
-const ALL_PURPOSE = "D · D U · U D U";
-const SIMPLE = "D · D · D · D";
-const BALLAD = "D · D U · D · D U";
-const PICKED = "Arpeggio — pick the strings one at a time";
-const ROCK = "All downstrokes, palm muted";
-const SIXTEENTHS = "1 e and a — keep the hand moving";
+const ALL_PURPOSE = STRUM.allPurpose;
+const SIMPLE = STRUM.simple;
+const BALLAD = STRUM.ballad;
+const PICKED = STRUM.picked;
+const ROCK = STRUM.downstrokes;
+const FUNK = STRUM.funk;
+const SIXTEENTHS = STRUM.sixteenths;
 
 const uniq = (chords: string[]) => [...new Set(chords)];
 
@@ -125,7 +127,7 @@ export const ENGLISH_SONGS: Song[] = [
     { loop: ["G", "D", "Em", "C"], capo: 1, strum: BALLAD, bpm: 66 }),
   S("thinking-out-loud", "Thinking Out Loud", "Ed Sheeran", 2,
     "Groove and small fills between chords.",
-    { loop: ["D", "G", "A", "D"], strum: "D · D U · U D U with dead strums", bpm: 79 }),
+    { loop: ["D", "G", "A", "D"], strum: FUNK, bpm: 79 }),
   S("shape-of-you", "Shape of You", "Ed Sheeran", 1,
     "A tight, percussive loop. Rhythm matters more than the chords here.",
     { loop: ["Am", "Dm", "G", "C"], strum: SIXTEENTHS, bpm: 96 }),
@@ -146,7 +148,7 @@ export const ENGLISH_SONGS: Song[] = [
     { loop: ["Am", "C", "G", "G"], strum: SIMPLE, bpm: 68 }),
   S("believer", "Believer", "Imagine Dragons", 2,
     "Percussive, aggressive rhythm playing.",
-    { loop: ["Am", "F", "C", "G"], strum: "Hard downstrokes with muted clicks", bpm: 125 }),
+    { loop: ["Am", "F", "C", "G"], strum: FUNK, bpm: 125 }),
   S("viva-la-vida", "Viva La Vida", "Coldplay", 1,
     "A four-chord cycle that keeps lifting. Good for strum dynamics.",
     { loop: ["C", "D", "G", "Em"], strum: SIMPLE, bpm: 69 }),

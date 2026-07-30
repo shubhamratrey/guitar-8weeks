@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { clickNow } from "@/lib/audio";
+import { pluck, warmUpSynth } from "@/lib/synth";
 import type { TabBlock } from "@/lib/types";
 
 /** High e at the top, low E at the bottom — the way tab is always written. */
@@ -14,6 +15,20 @@ interface Step {
   col: number;
   /** Columns it occupies, so a two-digit fret reads as one note. */
   width: number;
+  /** What to sound: string index (0 = high e) and fret. */
+  notes: { string: number; fret: number }[];
+}
+
+/** Read the fret number starting at a column, so "12" parses as twelve. */
+function fretAt(row: string, col: number): number | null {
+  if (!/\d/.test(row[col] ?? "")) return null;
+  let digits = "";
+  let i = col;
+  while (i < row.length && /\d/.test(row[i])) {
+    digits += row[i];
+    i += 1;
+  }
+  return Number(digits);
 }
 
 /**
@@ -39,12 +54,17 @@ function findSteps(rows: string[]): Step[] {
   return starts.map((col, i) => {
     const next = starts[i + 1] ?? width;
     let span = col;
-    for (const row of rows) {
+    const notes: { string: number; fret: number }[] = [];
+
+    rows.forEach((row, stringIndex) => {
       let end = col;
       while (end < width && /\d/.test(row[end] ?? "")) end += 1;
       span = Math.max(span, end);
-    }
-    return { col, width: Math.max(1, Math.min(span - col, next - col)) };
+      const fret = fretAt(row, col);
+      if (fret !== null) notes.push({ string: stringIndex, fret });
+    });
+
+    return { col, width: Math.max(1, Math.min(span - col, next - col)), notes };
   });
 }
 
@@ -61,7 +81,8 @@ export function TabPlayer({ tab }: { tab: TabBlock }) {
   const [playing, setPlaying] = useState(false);
   const [bpm, setBpm] = useState(60);
   const [loop, setLoop] = useState(true);
-  const [withClick, setWithClick] = useState(true);
+  const [withClick, setWithClick] = useState(false);
+  const [withGuitar, setWithGuitar] = useState(true);
   /** Fractional column position of the cursor. Drives the glide. */
   const [pos, setPos] = useState<number | null>(null);
   const [noteIndex, setNoteIndex] = useState(-1);
@@ -77,11 +98,12 @@ export function TabPlayer({ tab }: { tab: TabBlock }) {
   const frameRef = useRef<() => void>(() => {});
   // Read inside the animation loop, so changing them mid-play takes effect
   // without tearing down and restarting the frame loop.
-  const liveRef = useRef({ bpm, loop, withClick });
+  const liveRef = useRef({ bpm, loop, withClick, withGuitar });
+  const audioRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
-    liveRef.current = { bpm, loop, withClick };
-  }, [bpm, loop, withClick]);
+    liveRef.current = { bpm, loop, withClick, withGuitar };
+  }, [bpm, loop, withClick, withGuitar]);
 
   const stop = useCallback(() => {
     cancelAnimationFrame(rafRef.current);
@@ -120,6 +142,11 @@ export function TabPlayer({ tab }: { tab: TabBlock }) {
       lastNoteRef.current = i;
       setNoteIndex(i);
       if (liveRef.current.withClick) void clickNow(i === 0);
+
+      const ctx = audioRef.current;
+      if (ctx && liveRef.current.withGuitar) {
+        for (const note of steps[i].notes) pluck(ctx, note.string, note.fret);
+      }
     }
 
     // Keep the cursor about a third in from the left. Setting scrollLeft every
@@ -141,6 +168,10 @@ export function TabPlayer({ tab }: { tab: TabBlock }) {
 
   const start = useCallback(() => {
     if (!steps.length) return;
+    // Resolve audio before the first frame, which also unlocks it on iOS.
+    void warmUpSynth().then((ctx) => {
+      audioRef.current = ctx;
+    });
     // Measure now rather than on mount: by the time you press play the webfont
     // has definitely settled, so the character width is accurate.
     const sample = measureRef.current;
@@ -253,6 +284,16 @@ export function TabPlayer({ tab }: { tab: TabBlock }) {
               className="accent-amber"
             />
             loop
+          </label>
+
+          <label className="flex items-center gap-1.5 text-[11.5px] text-dim">
+            <input
+              type="checkbox"
+              checked={withGuitar}
+              onChange={(e) => setWithGuitar(e.target.checked)}
+              className="accent-amber"
+            />
+            guitar
           </label>
 
           <label className="flex items-center gap-1.5 text-[11.5px] text-dim">

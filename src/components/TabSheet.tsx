@@ -1,9 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChordDiagram } from "./ChordDiagram";
 import { clickNow } from "@/lib/audio";
 import { getChord } from "@/lib/chords";
+// aliased: the component already has a `strum` prop for the pattern text
+import { arpeggiate, pluck, strum as strumChord, warmUpSynth } from "@/lib/synth";
+import { parseStrum, type Stroke } from "@/lib/strum";
 import type { Score } from "@/lib/score";
 
 const BARS_PER_SYSTEM = 4;
@@ -43,7 +46,8 @@ export function TabSheet({
   const [playing, setPlaying] = useState(false);
   const [bpm, setBpm] = useState(initialBpm);
   const [loop, setLoop] = useState(true);
-  const [withClick, setWithClick] = useState(true);
+  const [withClick, setWithClick] = useState(false);
+  const [withGuitar, setWithGuitar] = useState(true);
   /** Beats elapsed, fractional. Drives everything visual. */
   const [beats, setBeats] = useState<number | null>(null);
 
@@ -55,13 +59,74 @@ export function TabSheet({
   const footerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<() => void>(() => {});
-  const liveRef = useRef({ bpm, loop, withClick });
+  const liveRef = useRef({ bpm, loop, withClick, withGuitar });
+  const audioRef = useRef<AudioContext | null>(null);
+  const eventPtrRef = useRef(0);
 
   useEffect(() => {
-    liveRef.current = { bpm, loop, withClick };
-  }, [bpm, loop, withClick]);
+    liveRef.current = { bpm, loop, withClick, withGuitar };
+  }, [bpm, loop, withClick, withGuitar]);
 
   const total = bars.length * beatsPerBar;
+
+  /**
+   * Everything to be sounded, flattened onto one beat timeline. Written notes
+   * fire at their exact beat; a rhythm bar strums its chord once per beat,
+   * alternating direction so it moves like a hand rather than a machine.
+   */
+  const timeline = useMemo(() => {
+    const events: {
+      at: number;
+      notes: { string: number; fret: number }[];
+      chord?: string;
+      stroke?: Stroke;
+      /** Which chord tone to pick, for arpeggiated parts. */
+      step?: number;
+    }[] = [];
+
+    const plan = parseStrum(strum);
+
+    bars.forEach((bar, index) => {
+      const base = index * beatsPerBar;
+
+      if (bar.notes?.length) {
+        const byBeat = new Map<number, { string: number; fret: number }[]>();
+        for (const note of bar.notes) {
+          const at = byBeat.get(note.beat) ?? [];
+          at.push({ string: note.string, fret: note.fret });
+          byBeat.set(note.beat, at);
+        }
+        for (const [beat, notes] of byBeat) events.push({ at: base + beat, notes });
+        return;
+      }
+
+      if (!bar.chord) return;
+
+      if (plan?.kind === "arpeggio") {
+        for (let beat = 0; beat < beatsPerBar; beat++) {
+          events.push({ at: base + beat, notes: [], chord: bar.chord, step: beat });
+        }
+        return;
+      }
+
+      if (plan?.kind === "strum") {
+        // Spread the hand's motion evenly across the bar.
+        const slot = beatsPerBar / plan.strokes.length;
+        plan.strokes.forEach((stroke, i) => {
+          if (stroke === "-") return;
+          events.push({ at: base + i * slot, notes: [], chord: bar.chord, stroke });
+        });
+        return;
+      }
+
+      // No recognised pattern: a plain downstroke on each beat.
+      for (let beat = 0; beat < beatsPerBar; beat++) {
+        events.push({ at: base + beat, notes: [], chord: bar.chord, stroke: "D" });
+      }
+    });
+
+    return events.sort((a, b) => a.at - b.at);
+  }, [bars, beatsPerBar, strum]);
 
   const stop = useCallback(() => {
     cancelAnimationFrame(rafRef.current);
@@ -83,6 +148,7 @@ export function TabSheet({
       }
       startedAtRef.current = performance.now();
       lastBeatRef.current = -1;
+      eventPtrRef.current = 0;
       elapsed = 0;
     }
 
@@ -92,6 +158,39 @@ export function TabSheet({
     if (whole !== lastBeatRef.current) {
       lastBeatRef.current = whole;
       if (liveRef.current.withClick) void clickNow(whole % beatsPerBar === 0);
+    }
+
+    // Sound everything the playhead has passed. A pointer rather than a search,
+    // so sub-beat notes land accurately without re-scanning each frame.
+    const ctx = audioRef.current;
+    if (ctx && liveRef.current.withGuitar) {
+      while (
+        eventPtrRef.current < timeline.length &&
+        timeline[eventPtrRef.current].at <= elapsed
+      ) {
+        const event = timeline[eventPtrRef.current];
+        if (event.chord && event.step !== undefined) {
+          arpeggiate(ctx, event.chord, { capo: capo ?? 0, step: event.step });
+        } else if (event.chord) {
+          strumChord(ctx, event.chord, {
+            capo: capo ?? 0,
+            direction: event.stroke === "U" ? "up" : "down",
+            muted: event.stroke === "X",
+          });
+        } else {
+          for (const note of event.notes) pluck(ctx, note.string, note.fret);
+        }
+        eventPtrRef.current += 1;
+      }
+    } else if (ctx) {
+      // Keep the pointer level with the playhead while muted, so unmuting
+      // mid-song doesn't dump every skipped note at once.
+      while (
+        eventPtrRef.current < timeline.length &&
+        timeline[eventPtrRef.current].at <= elapsed
+      ) {
+        eventPtrRef.current += 1;
+      }
     }
 
     // Follow the music down the page, the way a page-turner would.
@@ -105,7 +204,7 @@ export function TabSheet({
     }
 
     rafRef.current = requestAnimationFrame(() => frameRef.current());
-  }, [total, beatsPerBar, stop]);
+  }, [total, beatsPerBar, stop, timeline, capo]);
 
   useEffect(() => {
     frameRef.current = frame;
@@ -113,9 +212,15 @@ export function TabSheet({
 
   const start = useCallback(() => {
     if (!total) return;
+    // Resolve the audio context before the first frame so note one isn't lost
+    // to the promise, and so iOS unlocks audio on this tap.
+    void warmUpSynth().then((ctx) => {
+      audioRef.current = ctx;
+    });
     startedAtRef.current = performance.now();
     lastBeatRef.current = -1;
     lastSystemRef.current = -1;
+    eventPtrRef.current = 0;
     setPlaying(true);
     rafRef.current = requestAnimationFrame(() => frameRef.current());
   }, [total]);
@@ -195,6 +300,16 @@ export function TabSheet({
           className="accent-amber"
         />
         loop
+      </label>
+
+      <label className="flex items-center gap-1.5 text-[11.5px] text-dim">
+        <input
+          type="checkbox"
+          checked={withGuitar}
+          onChange={(e) => setWithGuitar(e.target.checked)}
+          className="accent-amber"
+        />
+        guitar
       </label>
 
       <label className="flex items-center gap-1.5 text-[11.5px] text-dim">

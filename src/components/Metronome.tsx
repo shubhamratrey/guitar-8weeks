@@ -2,6 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getAudioContext, scheduleClick } from "@/lib/audio";
+import { pluck, warmUpSynth } from "@/lib/synth";
+
+/** Open strings, thickest to thinnest, with their index in the synth. */
+const STRINGS: { label: string; index: number }[] = [
+  { label: "E", index: 5 },
+  { label: "A", index: 4 },
+  { label: "D", index: 3 },
+  { label: "G", index: 2 },
+  { label: "B", index: 1 },
+  { label: "e", index: 0 },
+];
 
 const LOOKAHEAD_MS = 25;
 const SCHEDULE_AHEAD_S = 0.12;
@@ -116,6 +127,24 @@ export function Metronome({ initialBpm = 80 }: { initialBpm?: number }) {
         >
           +
         </button>
+      </div>
+
+      {/* pitch reference — tap a string and match it by ear */}
+      <div className="mt-4 border-t border-line-soft pt-3.5">
+        <p className="legend mb-2">Tune by ear — tap a string</p>
+        <div className="flex gap-1.5">
+          {STRINGS.map((string) => (
+            <button
+              key={string.label}
+              onClick={() =>
+                void warmUpSynth().then((ctx) => pluck(ctx, string.index, 0, 0, 0.5))
+              }
+              className="flex-1 rounded-md border border-line py-2.5 font-mono text-[13px] text-muted transition-colors hover:border-amber hover:text-amber"
+            >
+              {string.label}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

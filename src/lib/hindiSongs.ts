@@ -1,3 +1,4 @@
+import { STRUM } from "./strum";
 import type { Song } from "./songs";
 
 /**
@@ -12,11 +13,12 @@ import type { Song } from "./songs";
  * recording before treating it as definitive.
  */
 
-const ALL_PURPOSE = "D · D U · U D U";
-const SIMPLE = "D · D · D · D";
-const BALLAD = "D · D U · D · D U";
-const PICKED = "Arpeggio — pick the strings one at a time";
-const SIXTEENTHS = "1 e and a — keep the hand moving";
+const ALL_PURPOSE = STRUM.allPurpose;
+const SIMPLE = STRUM.simple;
+const BALLAD = STRUM.ballad;
+const PICKED = STRUM.picked;
+const SIXTEENTHS = STRUM.sixteenths;
+const FUNK = STRUM.funk;
 
 const uniq = (chords: string[]) => [...new Set(chords)];
 
@@ -63,8 +65,9 @@ export const HINDI_SONGS: Song[] = [
     { loop: ENGINE, capo: 2, strum: BALLAD, bpm: 60, planDay: 20,
       note: "Capo 2 with these shapes. Without a capo it's Bm, G, D, A — that needs barre chords." }),
   S("kabira", "Kabira", "Yeh Jawaani Hai Deewani", 1,
-    "Gentle strumming on the same shape set. Easy to sing along to.",
-    { loop: ENGINE, capo: 2, strum: ALL_PURPOSE, bpm: 72, planDay: 20 }),
+    "Down, up and muted strokes in one pattern — the Bollywood strum in miniature.",
+    { loop: ENGINE, capo: 2, strum: FUNK, bpm: 72, planDay: 20,
+      note: "The X slots are dead strums: relax the fretting hand so the strings are touched but not pressed, and you get a percussive click instead of a chord. That click is what makes this pattern groove." }),
   S("channa-mereya", "Channa Mereya", "Arijit Singh · Ae Dil Hai Mushkil", 1,
     "Arpeggio picking rather than strumming. Sounds far harder than it is.",
     { loop: ENGINE, capo: 2, strum: PICKED, bpm: 58, planDay: 25 }),
@@ -204,7 +207,7 @@ export const HINDI_SONGS: Song[] = [
     { loop: ["C", "G", "Am", "Fmaj7"], strum: SIMPLE, bpm: 70 }),
   S("chaiyya-chaiyya", "Chaiyya Chaiyya", "Sukhwinder Singh · Dil Se", 2,
     "Rhythmic drive and percussive strumming. Genuinely fun to play.",
-    { loop: ["Am", "G", "Fmaj7", "C"], strum: "Percussive — mix in dead strums", bpm: 92 }),
+    { loop: ["Am", "G", "Fmaj7", "C"], strum: FUNK, bpm: 92 }),
   S("kal-ho-naa-ho", "Kal Ho Naa Ho", "Sonu Nigam", 2,
     "A long ballad with a big lift. Good practice at holding a song together.",
     { loop: ["C", "G", "Am", "Fmaj7"], strum: BALLAD, bpm: 72 }),
