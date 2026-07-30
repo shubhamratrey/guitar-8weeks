@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChordDiagram } from "@/components/ChordDiagram";
 import { ScaleBox } from "@/components/ScaleBox";
+import { Tuner } from "@/components/Tuner";
 
 const GROUPS = [
   {
@@ -38,7 +39,7 @@ const TAB_KEY: [string, string][] = [
 ];
 
 export default function ReferencePage() {
-  const [tab, setTab] = useState<"chords" | "extras">("chords");
+  const [tab, setTab] = useState<"chords" | "extras" | "tuner">("chords");
 
   return (
     <div className="space-y-5">
@@ -55,6 +56,7 @@ export default function ReferencePage() {
           [
             ["chords", "Chord shapes"],
             ["extras", "Scale & tab"],
+            ["tuner", "Tuner"],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -71,7 +73,9 @@ export default function ReferencePage() {
         ))}
       </div>
 
-      {tab === "chords" ? (
+      {tab === "tuner" ? (
+        <Tuner />
+      ) : tab === "chords" ? (
         <div className="space-y-4">
           {GROUPS.map((group) => (
             <section key={group.label} className="panel p-4">

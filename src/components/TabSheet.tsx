@@ -60,26 +60,37 @@ export function TabSheet({
   const [loop, setLoop] = useState(true);
   const [withClick, setWithClick] = useState(false);
   const [withGuitar, setWithGuitar] = useState(true);
+  /** Bar range to loop, as inclusive indices. Null means the whole piece. */
+  const [section, setSection] = useState<{ from: number; to: number } | null>(null);
+  const [trainer, setTrainer] = useState(false);
+  const [ceiling, setCeiling] = useState(0);
   /** Write chord voicings on the staff as fret numbers, not just as slashes. */
   const [showFrets, setShowFrets] = useState(true);
   /** Beats elapsed, fractional. Drives everything visual. */
   const [beats, setBeats] = useState<number | null>(null);
 
   const rafRef = useRef(0);
-  const startedAtRef = useRef(0);
+  /**
+   * Beats are accumulated frame by frame rather than derived from a start
+   * timestamp. Deriving them means a tempo change retroactively rescales all
+   * elapsed time and the playhead jumps — fatal for a speed trainer that
+   * changes tempo mid-play.
+   */
+  const beatsRef = useRef(0);
+  const lastTsRef = useRef(0);
   const lastBeatRef = useRef(-1);
   const lastSystemRef = useRef(-1);
   const systemRefs = useRef<(SVGSVGElement | null)[]>([]);
   const footerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<() => void>(() => {});
-  const liveRef = useRef({ bpm, loop, withClick, withGuitar });
+  const liveRef = useRef({ bpm, loop, withClick, withGuitar, section, trainer, ceiling });
   const audioRef = useRef<AudioContext | null>(null);
   const eventPtrRef = useRef(0);
 
   useEffect(() => {
-    liveRef.current = { bpm, loop, withClick, withGuitar };
-  }, [bpm, loop, withClick, withGuitar]);
+    liveRef.current = { bpm, loop, withClick, withGuitar, section, trainer, ceiling };
+  }, [bpm, loop, withClick, withGuitar, section, trainer, ceiling]);
 
   const total = bars.length * beatsPerBar;
 
@@ -152,20 +163,36 @@ export function TabSheet({
 
   const frame = useCallback(() => {
     if (!total) return;
-    const beatMs = 60_000 / liveRef.current.bpm;
-    let elapsed = (performance.now() - startedAtRef.current) / beatMs;
 
-    if (elapsed >= total) {
+    const now = performance.now();
+    const beatMs = 60_000 / liveRef.current.bpm;
+    beatsRef.current += (now - lastTsRef.current) / beatMs;
+    lastTsRef.current = now;
+
+    // The window being played: a chosen section, or the whole piece.
+    const { section: window } = liveRef.current;
+    const windowStart = window ? window.from * beatsPerBar : 0;
+    const windowEnd = window ? (window.to + 1) * beatsPerBar : total;
+
+    if (beatsRef.current >= windowEnd) {
       if (!liveRef.current.loop) {
         stop();
         return;
       }
-      startedAtRef.current = performance.now();
+      beatsRef.current = windowStart;
       lastBeatRef.current = -1;
-      eventPtrRef.current = 0;
-      elapsed = 0;
+      eventPtrRef.current = timeline.findIndex((e) => e.at >= windowStart);
+      if (eventPtrRef.current < 0) eventPtrRef.current = timeline.length;
+
+      // Speed trainer: each pass a little faster, up to the ceiling.
+      const live = liveRef.current;
+      if (live.trainer) {
+        const next = Math.min(live.ceiling, live.bpm + 2);
+        if (next > live.bpm) setBpm(next);
+      }
     }
 
+    const elapsed = beatsRef.current;
     setBeats(elapsed);
 
     const whole = Math.floor(elapsed);
@@ -239,13 +266,21 @@ export function TabSheet({
     void warmUpSynth().then((ctx) => {
       audioRef.current = ctx;
     });
-    startedAtRef.current = performance.now();
+
+    const from = section ? section.from * beatsPerBar : 0;
+    beatsRef.current = from;
+    lastTsRef.current = performance.now();
     lastBeatRef.current = -1;
     lastSystemRef.current = -1;
-    eventPtrRef.current = 0;
+    const at = timeline.findIndex((e) => e.at >= from);
+    eventPtrRef.current = at < 0 ? timeline.length : at;
+
+    // Give the trainer somewhere to climb to if it hasn't been set.
+    if (trainer && ceiling <= bpm) setCeiling(Math.min(200, bpm + 40));
+
     setPlaying(true);
     rafRef.current = requestAnimationFrame(() => frameRef.current());
-  }, [total]);
+  }, [total, section, beatsPerBar, timeline, trainer, ceiling, bpm]);
 
   useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
 
@@ -277,6 +312,20 @@ export function TabSheet({
       if (scroller) scroller.style.scrollPaddingBottom = "";
     };
   }, [stage]);
+
+  /**
+   * Click a bar to start a section, click another to end it, click again to
+   * clear — no separate mode to enter or leave.
+   */
+  const pickBar = (index: number) => {
+    setSection((current) => {
+      if (!current) return { from: index, to: index };
+      if (current.from === current.to && index === current.from) return null;
+      if (index < current.from) return { from: index, to: current.to };
+      if (current.from === current.to) return { from: current.from, to: index };
+      return { from: index, to: index };
+    });
+  };
 
   if (!bars.length) return null;
 
@@ -355,6 +404,44 @@ export function TabSheet({
         />
         click
       </label>
+
+      {section ? (
+        <button
+          onClick={() => setSection(null)}
+          className="rounded-md border border-amber/50 bg-amber/[0.08] px-2.5 py-1.5 text-[11.5px] font-semibold text-amber"
+          title="Clear the section and play the whole piece"
+        >
+          bars {section.from + 1}
+          {section.to !== section.from ? `–${section.to + 1}` : ""} ✕
+        </button>
+      ) : (
+        <span className="text-[11px] text-dim">click a bar to loop it</span>
+      )}
+
+      <label className="flex items-center gap-1.5 text-[11.5px] text-dim">
+        <input
+          type="checkbox"
+          checked={trainer}
+          onChange={(e) => setTrainer(e.target.checked)}
+          className="accent-amber"
+        />
+        speed trainer
+      </label>
+
+      {trainer && (
+        <label className="flex items-center gap-1.5 text-[11.5px] text-dim">
+          up to
+          <input
+            type="number"
+            min={bpm}
+            max={220}
+            value={ceiling || bpm + 40}
+            onChange={(e) => setCeiling(Number(e.target.value))}
+            className="w-16 rounded border border-line bg-panel-2 px-1.5 py-1 font-mono text-[11.5px] text-text outline-none focus:border-amber"
+          />
+          bpm
+        </label>
+      )}
 
       <span className="ml-auto hidden text-[11px] text-dim sm:block">
         {bars.length} bars · {beatsPerBar}/4
@@ -498,6 +585,32 @@ export function TabSheet({
                       opacity={0.07}
                     />
                   )}
+
+                  {/* Bars outside the chosen section are dimmed, not hidden —
+                      you still want to see where you are in the piece. */}
+                  {section && (index < section.from || index > section.to) && (
+                    <rect
+                      x={x}
+                      y={G.top - 9}
+                      width={G.barW}
+                      height={staffH + 18}
+                      fill="var(--color-ink)"
+                      opacity={0.62}
+                    />
+                  )}
+
+                  {/* click target for choosing the loop range */}
+                  <rect
+                    x={x}
+                    y={G.top - 9}
+                    width={G.barW}
+                    height={staffH + 18}
+                    fill="transparent"
+                    className="cursor-pointer"
+                    onClick={() => pickBar(index)}
+                  >
+                    <title>{`Bar ${index + 1} — click to loop from here`}</title>
+                  </rect>
 
                   <line
                     x1={x}

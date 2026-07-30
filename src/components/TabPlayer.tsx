@@ -131,7 +131,6 @@ export function TabPlayer({ tab }: { tab: TabBlock }) {
   const [withGuitar, setWithGuitar] = useState(true);
   /** Fractional column position of the cursor. Drives the glide. */
   const [pos, setPos] = useState<number | null>(null);
-  const [noteIndex, setNoteIndex] = useState(-1);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLSpanElement>(null);
@@ -155,7 +154,6 @@ export function TabPlayer({ tab }: { tab: TabBlock }) {
     cancelAnimationFrame(rafRef.current);
     setPlaying(false);
     setPos(null);
-    setNoteIndex(-1);
     lastNoteRef.current = -1;
   }, []);
 
@@ -186,7 +184,6 @@ export function TabPlayer({ tab }: { tab: TabBlock }) {
 
     if (i !== lastNoteRef.current) {
       lastNoteRef.current = i;
-      setNoteIndex(i);
       if (liveRef.current.withClick) void clickNow(i === 0);
 
       const ctx = audioRef.current;
@@ -244,7 +241,6 @@ export function TabPlayer({ tab }: { tab: TabBlock }) {
     return () => cancelAnimationFrame(rafRef.current);
   }, []);
 
-  const active = noteIndex >= 0 ? steps[noteIndex] : undefined;
 
   return (
     <figure className="rounded-md border border-line-soft bg-ink/70 p-3">
@@ -277,23 +273,11 @@ export function TabPlayer({ tab }: { tab: TabBlock }) {
           </span>
 
           <div className="relative w-fit">
-            {/* soft band over the note being played */}
-            {active && (
-              <div
-                className="pointer-events-none absolute inset-y-0 rounded-[2px] bg-amber/20"
-                style={{ left: `${active.col}ch`, width: `${active.width}ch` }}
-                aria-hidden
-              />
-            )}
-
-            {/* the gliding cursor */}
+            {/* the gliding playhead: a plain line, no glow */}
             {pos !== null && (
               <div
                 className="pointer-events-none absolute inset-y-0 w-[2px] bg-amber"
-                style={{
-                  left: `${pos}ch`,
-                  boxShadow: "0 0 10px 1px var(--color-amber)",
-                }}
+                style={{ left: `${pos}ch` }}
                 aria-hidden
               />
             )}
