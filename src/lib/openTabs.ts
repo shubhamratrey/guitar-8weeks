@@ -15,6 +15,12 @@ const bar = (
   notes: notes.map(([string, fret, beat]) => ({ string, fret, beat })),
 });
 
+/** A bar whose notes carry articulations — hammer-ons, slides, bends. */
+const artBar = (
+  notes: import("./score").ScoreNote[],
+  extra: { chord?: string; direction?: string; lyric?: string } = {},
+) => ({ ...extra, notes });
+
 /* string indices: 0 = high e, 1 = B, 2 = G, 3 = D, 4 = A, 5 = low E */
 
 const ODE_TO_JOY: Score = {
@@ -141,16 +147,68 @@ const ALT_PICKING_LADDER: Score = {
   ],
 };
 
+/** Only the first note of each pair is picked; the rest come from the hand. */
+const roll = (string: number, low: number, high: number) => [
+  { string, fret: low, beat: 0 },
+  { string, fret: high, beat: 0.5, art: "h" as const },
+  { string, fret: low, beat: 1, art: "p" as const },
+  { string, fret: high, beat: 1.5, art: "h" as const },
+  { string, fret: low, beat: 2, art: "p" as const },
+  { string, fret: high, beat: 2.5, art: "h" as const },
+  { string, fret: low, beat: 3, art: "p" as const },
+];
+
 const HAMMER_ROLL: Score = {
   title: "Hammer-on and pull-off rolls",
   beatsPerBar: 4,
   bars: [
-    bar([[2, 5, 0], [2, 7, 0.5], [2, 5, 1], [2, 7, 1.5], [2, 5, 2], [2, 7, 2.5], [2, 5, 3]], {
-      direction: "pick only the first note of each pair",
-    }),
-    bar([[1, 5, 0], [1, 8, 0.5], [1, 5, 1], [1, 8, 1.5], [1, 5, 2], [1, 8, 2.5], [1, 5, 3]]),
-    bar([[0, 5, 0], [0, 8, 0.5], [0, 5, 1], [0, 8, 1.5], [0, 5, 2], [0, 8, 2.5], [0, 5, 3]]),
-    bar([[2, 5, 0], [2, 7, 1], [2, 5, 2]], { direction: "slow it right down to finish" }),
+    artBar(roll(2, 5, 7), { direction: "pick only the first note of each pair" }),
+    artBar(roll(1, 5, 8)),
+    artBar(roll(0, 5, 8)),
+    artBar(
+      [
+        { string: 2, fret: 5, beat: 0 },
+        { string: 2, fret: 7, beat: 1, art: "h" },
+        { string: 2, fret: 5, beat: 2, art: "p" },
+      ],
+      { direction: "slow it right down to finish" },
+    ),
+  ],
+};
+
+/** Slides and bends, so the ear learns what landing in tune sounds like. */
+const SLIDE_AND_BEND: Score = {
+  title: "Slides, bends and vibrato",
+  beatsPerBar: 4,
+  bars: [
+    artBar(
+      [
+        { string: 2, fret: 5, beat: 0, art: "s", to: 7 },
+        { string: 2, fret: 7, beat: 2, art: "s", to: 5 },
+      ],
+      { direction: "slide up, then back — keep the pressure on" },
+    ),
+    artBar(
+      [
+        { string: 2, fret: 5, beat: 0, art: "s", to: 12 },
+        { string: 2, fret: 12, beat: 2, art: "s", to: 5 },
+      ],
+      { direction: "a long one, landing exactly on 12" },
+    ),
+    artBar(
+      [
+        { string: 2, fret: 7, beat: 0, art: "b", to: 9 },
+        { string: 2, fret: 7, beat: 2, art: "b", to: 9 },
+      ],
+      { direction: "bend a full step — aim for the pitch of fret 9" },
+    ),
+    artBar(
+      [
+        { string: 1, fret: 8, beat: 0, art: "b", to: 9 },
+        { string: 1, fret: 8, beat: 2, art: "v" },
+      ],
+      { direction: "half-step bend, then hold with vibrato" },
+    ),
   ],
 };
 
@@ -538,6 +596,21 @@ export const OPEN_SONGS: Song[] = [
     soloScale: { rootFret: 7, label: "B minor pentatonic — box 1 at the 7th fret" },
     teaches: "Four licks and, more importantly, where to leave gaps between them.",
     note: "Original licks over the Bm–F#–A–E–G–D–Em–F# cycle, so you can solo over that progression with phrases of your own instead of copying someone's. Learn all four, then start swapping their order.",
+  },
+  {
+    id: "open-slides-bends",
+    title: "Slides, Bends & Vibrato",
+    artist: "Exercise written for this plan",
+    language: "english",
+    difficulty: 2,
+    chords: [],
+    loop: [],
+    score: SLIDE_AND_BEND,
+    open: true,
+    bpm: 58,
+    planDay: 33,
+    teaches: "The three moves that make a note expressive rather than just correct.",
+    note: "Playback glides the pitch rather than jumping, so you can hear where a slide or bend is meant to land. Play along and match it — bending in tune is an ear skill before it's a hand skill.",
   },
   {
     id: "open-barre-shifter",

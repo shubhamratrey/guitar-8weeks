@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { clickNow } from "@/lib/audio";
-import { pluck, warmUpSynth } from "@/lib/synth";
+import { playNote, warmUpSynth } from "@/lib/synth";
 import type { TabBlock } from "@/lib/types";
 
 /** High e at the top, low E at the bottom — the way tab is always written. */
@@ -10,13 +10,25 @@ const ROW_LABELS = ["e", "B", "G", "D", "A", "E"];
 
 const CHAR_SAMPLE = "-".repeat(20);
 
+interface PlayableNote {
+  string: number;
+  fret: number;
+  /** Hammer-on or pull-off: fretting hand starts it, so no pick attack. */
+  soft?: boolean;
+  /** Slide or bend target — the pitch glides there. */
+  toFret?: number;
+  glide?: number;
+  vibrato?: boolean;
+  /** A slide's destination isn't re-picked; the glide already sounded it. */
+  silent?: boolean;
+}
+
 interface Step {
   /** Column index where this note begins. */
   col: number;
   /** Columns it occupies, so a two-digit fret reads as one note. */
   width: number;
-  /** What to sound: string index (0 = high e) and fret. */
-  notes: { string: number; fret: number }[];
+  notes: PlayableNote[];
 }
 
 /** Read the fret number starting at a column, so "12" parses as twelve. */
@@ -51,21 +63,55 @@ function findSteps(rows: string[]): Step[] {
     if (isStart) starts.push(col);
   }
 
-  return starts.map((col, i) => {
+  const steps: Step[] = starts.map((col, i) => {
     const next = starts[i + 1] ?? width;
     let span = col;
-    const notes: { string: number; fret: number }[] = [];
+    const notes: PlayableNote[] = [];
 
     rows.forEach((row, stringIndex) => {
       let end = col;
       while (end < width && /\d/.test(row[end] ?? "")) end += 1;
       span = Math.max(span, end);
       const fret = fretAt(row, col);
-      if (fret !== null) notes.push({ string: stringIndex, fret });
+      if (fret === null) return;
+
+      // The character just before the number says how this note is started.
+      const before = col > 0 ? row[col - 1] : "";
+      const note: PlayableNote = { string: stringIndex, fret };
+      if (before === "h" || before === "p") note.soft = true;
+      if (before === "/" || before === "\\") note.silent = true;
+      if (before === "b") note.silent = true;
+      // And the character just after can add a wobble.
+      if (row[end] === "~") note.vibrato = true;
+
+      notes.push(note);
     });
 
     return { col, width: Math.max(1, Math.min(span - col, next - col)), notes };
   });
+
+  /**
+   * Link glides back to the note they start from: a slide or bend isn't a new
+   * attack, it's the previous note's pitch moving. The destination is marked
+   * silent above, and here the source note is told where to travel.
+   */
+  for (let i = 1; i < steps.length; i += 1) {
+    const { col } = steps[i];
+    for (const note of steps[i].notes) {
+      if (!note.silent) continue;
+      const from = steps[i - 1].notes.find((n) => n.string === note.string);
+      if (!from) {
+        // Nothing to glide from, so sound it normally rather than silently drop it.
+        note.silent = false;
+        continue;
+      }
+      from.toFret = note.fret;
+      // A bend pushes faster than a slide travels.
+      from.glide = rows[note.string][col - 1] === "b" ? 0.12 : 0.18;
+    }
+  }
+
+  return steps;
 }
 
 export function TabPlayer({ tab }: { tab: TabBlock }) {
@@ -145,7 +191,16 @@ export function TabPlayer({ tab }: { tab: TabBlock }) {
 
       const ctx = audioRef.current;
       if (ctx && liveRef.current.withGuitar) {
-        for (const note of steps[i].notes) pluck(ctx, note.string, note.fret);
+        for (const note of steps[i].notes) {
+          // A slide or bend destination was already sounded by the glide.
+          if (note.silent) continue;
+          playNote(ctx, note.string, note.fret, {
+            soft: note.soft,
+            toFret: note.toFret,
+            glide: note.glide,
+            vibrato: note.vibrato,
+          });
+        }
       }
     }
 

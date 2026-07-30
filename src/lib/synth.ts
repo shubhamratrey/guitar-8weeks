@@ -49,7 +49,70 @@ function pluckBuffer(ctx: AudioContext, hz: number, seconds: number): AudioBuffe
 
 export const warmUpSynth = (): Promise<AudioContext> => getAudioContext();
 
-/** One note. `when` is seconds from now. */
+export interface NoteOptions {
+  when?: number;
+  gain?: number;
+  /**
+   * Glide the pitch to this fret — slides and bends. Done by ramping
+   * playbackRate, which is a continuous pitch change rather than a new note.
+   */
+  toFret?: number;
+  /** Seconds the glide takes. Slides travel; bends push. */
+  glide?: number;
+  /**
+   * Hammer-ons and pull-offs: the fretting hand starts the note, so it's
+   * quieter and eases in instead of arriving with a pick attack.
+   */
+  soft?: boolean;
+  vibrato?: boolean;
+}
+
+/** One note, with articulation. `when` is seconds from now. */
+export function playNote(
+  ctx: AudioContext,
+  stringIndex: number,
+  fret: number,
+  opts: NoteOptions = {},
+): void {
+  if (stringIndex < 0 || stringIndex > 5 || fret < 0) return;
+
+  const at = ctx.currentTime + (opts.when ?? 0);
+  const source = ctx.createBufferSource();
+  source.buffer = pluckBuffer(ctx, noteHz(stringIndex, fret), 2.4);
+
+  if (opts.toFret !== undefined && opts.toFret !== fret) {
+    const ratio = 2 ** ((opts.toFret - fret) / 12);
+    source.playbackRate.setValueAtTime(1, at);
+    source.playbackRate.linearRampToValueAtTime(ratio, at + (opts.glide ?? 0.16));
+  }
+
+  if (opts.vibrato) {
+    // A small, steady wobble around the pitch — added to playbackRate.
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 5.5;
+    const depth = ctx.createGain();
+    depth.gain.value = 0.014;
+    lfo.connect(depth).connect(source.playbackRate);
+    lfo.start(at);
+    lfo.stop(at + 2);
+  }
+
+  // roll off the top so it reads as a warm neck pickup rather than a buzz
+  const tone = ctx.createBiquadFilter();
+  tone.type = "lowpass";
+  tone.frequency.value = opts.soft ? 2600 : 3600;
+  tone.Q.value = 0.4;
+
+  const level = ctx.createGain();
+  const peak = (opts.gain ?? 0.42) * (opts.soft ? 0.66 : 1);
+  level.gain.setValueAtTime(0, at);
+  level.gain.linearRampToValueAtTime(peak, at + (opts.soft ? 0.022 : 0.004));
+
+  source.connect(tone).connect(level).connect(ctx.destination);
+  source.start(at);
+}
+
+/** Plain picked note — the common case. */
 export function pluck(
   ctx: AudioContext,
   stringIndex: number,
@@ -57,22 +120,7 @@ export function pluck(
   when = 0,
   gain = 0.42,
 ): void {
-  if (stringIndex < 0 || stringIndex > 5 || fret < 0) return;
-
-  const source = ctx.createBufferSource();
-  source.buffer = pluckBuffer(ctx, noteHz(stringIndex, fret), 2.4);
-
-  // roll off the top so it reads as a warm neck pickup rather than a buzz
-  const tone = ctx.createBiquadFilter();
-  tone.type = "lowpass";
-  tone.frequency.value = 3600;
-  tone.Q.value = 0.4;
-
-  const level = ctx.createGain();
-  level.gain.value = gain;
-
-  source.connect(tone).connect(level).connect(ctx.destination);
-  source.start(ctx.currentTime + when);
+  playNote(ctx, stringIndex, fret, { when, gain });
 }
 
 let noiseBuffer: AudioBuffer | null = null;

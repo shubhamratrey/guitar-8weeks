@@ -5,8 +5,9 @@ import { ChordDiagram } from "./ChordDiagram";
 import { clickNow } from "@/lib/audio";
 import { getChord } from "@/lib/chords";
 // aliased: the component already has a `strum` prop for the pattern text
-import { arpeggiate, pluck, strum as strumChord, warmUpSynth } from "@/lib/synth";
+import { arpeggiate, playNote, strum as strumChord, warmUpSynth } from "@/lib/synth";
 import { parseStrum, type Stroke } from "@/lib/strum";
+import type { ScoreNote } from "@/lib/score";
 import type { Score } from "@/lib/score";
 
 const BARS_PER_SYSTEM = 4;
@@ -49,6 +50,8 @@ export function TabSheet({
   const [loop, setLoop] = useState(true);
   const [withClick, setWithClick] = useState(false);
   const [withGuitar, setWithGuitar] = useState(true);
+  /** Write chord voicings on the staff as fret numbers, not just as slashes. */
+  const [showFrets, setShowFrets] = useState(true);
   /** Beats elapsed, fractional. Drives everything visual. */
   const [beats, setBeats] = useState<number | null>(null);
 
@@ -78,7 +81,7 @@ export function TabSheet({
   const timeline = useMemo(() => {
     const events: {
       at: number;
-      notes: { string: number; fret: number }[];
+      notes: ScoreNote[];
       chord?: string;
       stroke?: Stroke;
       /** Which chord tone to pick, for arpeggiated parts. */
@@ -91,10 +94,10 @@ export function TabSheet({
       const base = index * beatsPerBar;
 
       if (bar.notes?.length) {
-        const byBeat = new Map<number, { string: number; fret: number }[]>();
+        const byBeat = new Map<number, ScoreNote[]>();
         for (const note of bar.notes) {
           const at = byBeat.get(note.beat) ?? [];
-          at.push({ string: note.string, fret: note.fret });
+          at.push(note);
           byBeat.set(note.beat, at);
         }
         for (const [beat, notes] of byBeat) events.push({ at: base + beat, notes });
@@ -179,7 +182,15 @@ export function TabSheet({
             muted: event.stroke === "X",
           });
         } else {
-          for (const note of event.notes) pluck(ctx, note.string, note.fret);
+          for (const note of event.notes) {
+            playNote(ctx, note.string, note.fret, {
+              // Hammer-ons and pull-offs come from the fretting hand, not the pick.
+              soft: note.art === "h" || note.art === "p",
+              toFret: note.art === "s" || note.art === "b" ? note.to : undefined,
+              glide: note.art === "b" ? 0.12 : 0.18,
+              vibrato: note.art === "v",
+            });
+          }
         }
         eventPtrRef.current += 1;
       }
@@ -312,6 +323,18 @@ export function TabSheet({
         />
         guitar
       </label>
+
+      {bars.some((bar) => !bar.notes && bar.chord) && (
+        <label className="flex items-center gap-1.5 text-[11.5px] text-dim">
+          <input
+            type="checkbox"
+            checked={showFrets}
+            onChange={(e) => setShowFrets(e.target.checked)}
+            className="accent-amber"
+          />
+          fret numbers
+        </label>
+      )}
 
       <label className="flex items-center gap-1.5 text-[11.5px] text-dim">
         <input
@@ -507,6 +530,40 @@ export function TabSheet({
                     </text>
                   )}
 
+                  {/* The chord written out on the staff, so a chart reads as tab
+                      rather than as a box you have to look up. Frets are shifted
+                      by the capo, which is where they actually sound. */}
+                  {!bar.notes &&
+                    showFrets &&
+                    Array.from({ length: beatsPerBar }, (_, beatIndex) => {
+                      const chord = getChord(bar.chord ?? "");
+                      if (!chord) return null;
+                      const bx = x + (beatIndex + 0.5) * (G.barW / beatsPerBar);
+                      const lit = isActive && Math.floor(beatInBar) === beatIndex;
+                      return chord.frets.map((fret, stringFromLowE) => {
+                        if (fret < 0) return null;
+                        const stringIndex = 5 - stringFromLowE;
+                        const fy = G.top + stringIndex * G.gap;
+                        return (
+                          <g key={`v-${beatIndex}-${stringFromLowE}`}>
+                            <circle cx={bx} cy={fy} r={G.dot} fill="var(--color-ink)" />
+                            <text
+                              x={bx}
+                              y={fy + G.fret * 0.34}
+                              textAnchor="middle"
+                              fontSize={G.fret}
+                              fontWeight={lit ? 700 : 500}
+                              fill={lit ? "var(--color-amber)" : "var(--color-text)"}
+                              fontFamily="var(--font-mono)"
+                            >
+                              {/* what actually sounds, capo included */}
+                              {fret + (capo ?? 0)}
+                            </text>
+                          </g>
+                        );
+                      });
+                    })}
+
                   {/* rhythm marks, in their own lane below the staff */}
                   {!bar.notes &&
                     Array.from({ length: beatsPerBar }, (_, b) => {
@@ -526,12 +583,13 @@ export function TabSheet({
                       );
                     })}
 
-                  {/* written fret numbers */}
+                  {/* written fret numbers, with their articulation marks */}
                   {bar.notes?.map((note, n) => {
                     const bx = x + (note.beat + 0.5) * (G.barW / beatsPerBar);
                     const by = G.top + note.string * G.gap;
                     const lit =
                       isActive && Math.floor(beatInBar) === Math.floor(note.beat);
+                    const mark = note.art === "s" ? "/" : note.art === "v" ? "~" : note.art;
                     return (
                       <g key={n}>
                         <circle cx={bx} cy={by} r={G.dot} fill="var(--color-ink)" />
@@ -546,6 +604,18 @@ export function TabSheet({
                         >
                           {note.fret}
                         </text>
+                        {mark && (
+                          <text
+                            x={bx + G.dot + 1}
+                            y={by + G.fret * 0.34}
+                            fontSize={G.fret * 0.82}
+                            fill="var(--color-amber)"
+                            fontFamily="var(--font-mono)"
+                          >
+                            {mark}
+                            {note.to !== undefined ? note.to : ""}
+                          </text>
+                        )}
                       </g>
                     );
                   })}

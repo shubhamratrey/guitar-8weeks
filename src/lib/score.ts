@@ -1,9 +1,16 @@
+/** How a note is started, using the letters tab already uses. */
+export type Articulation = "h" | "p" | "s" | "b" | "v";
+
 /** A note on the staff. `string` is 0 = high e … 5 = low E, matching tab rows. */
 export interface ScoreNote {
   string: number;
   fret: number;
   /** Which beat of the bar it falls on, 0-indexed. Fractions are fine. */
   beat: number;
+  /** h hammer-on, p pull-off, s slide, b bend, v vibrato. */
+  art?: Articulation;
+  /** Where a slide or bend travels to. */
+  to?: number;
 }
 
 export interface ScoreBar {
