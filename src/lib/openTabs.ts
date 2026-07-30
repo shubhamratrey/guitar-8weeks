@@ -154,28 +154,104 @@ const HAMMER_ROLL: Score = {
   ],
 };
 
+type Pos = [string: number, fret: number];
+
+/**
+ * A rolling arpeggio bar: bass note, up through three strings, back down, and
+ * the bass again. Eight notes to a bar, which is the figure under most
+ * arpeggiated ballads.
+ */
+const arpBar = (
+  bass: Pos,
+  [a, b, c]: [Pos, Pos, Pos],
+  extra: { chord?: string; direction?: string } = {},
+) =>
+  bar(
+    [
+      [bass[0], bass[1], 0],
+      [a[0], a[1], 0.5],
+      [b[0], b[1], 1],
+      [c[0], c[1], 1.5],
+      [b[0], b[1], 2],
+      [a[0], a[1], 2.5],
+      [bass[0], bass[1], 3],
+      [a[0], a[1], 3.5],
+    ],
+    extra,
+  );
+
+/* Bass note and the three upper strings of each shape, high e = 0. */
+const SHAPES: Record<string, { bass: Pos; uppers: [Pos, Pos, Pos] }> = {
+  Bm: { bass: [4, 2], uppers: [[2, 4], [1, 3], [0, 2]] },
+  "F#": { bass: [5, 2], uppers: [[2, 3], [1, 2], [0, 2]] },
+  A: { bass: [4, 0], uppers: [[2, 2], [1, 2], [0, 0]] },
+  E: { bass: [5, 0], uppers: [[2, 1], [1, 0], [0, 0]] },
+  G: { bass: [5, 3], uppers: [[2, 0], [1, 0], [0, 3]] },
+  D: { bass: [3, 0], uppers: [[2, 2], [1, 3], [0, 2]] },
+  Em: { bass: [5, 0], uppers: [[2, 0], [1, 0], [0, 0]] },
+};
+
+const CYCLE = ["Bm", "F#", "A", "E", "G", "D", "Em", "F#"];
+
 /**
  * Written for this plan to drill the skill behind arpeggiated barre-chord
- * ballads: hold a barre, pick the strings one at a time, change without a gap.
+ * ballads: hold a barre, pick the strings one at a time, and change without a
+ * gap in the sound. Sixteen bars — the cycle twice, second time with the bass
+ * ringing longer so you have to hold the shape.
  */
 const ARPEGGIO_STUDY: Score = {
-  title: "Arpeggio study in B minor",
+  title: "Arpeggio study in B minor — 16 bars",
   beatsPerBar: 4,
   bars: [
-    bar([[4, 2, 0], [3, 4, 1], [2, 4, 2], [1, 3, 3]], {
+    ...CYCLE.map((chord, i) =>
+      arpBar(SHAPES[chord].bass, SHAPES[chord].uppers, {
+        chord,
+        direction: i === 0 ? "hold the shape — pick, never strum" : undefined,
+      }),
+    ),
+    ...CYCLE.map((chord, i) =>
+      arpBar(SHAPES[chord].bass, SHAPES[chord].uppers, {
+        chord,
+        direction:
+          i === 0
+            ? "again — let the bass ring under the whole bar"
+            : i === CYCLE.length - 1
+              ? "back to the top"
+              : undefined,
+      }),
+    ),
+  ],
+};
+
+/**
+ * Four original licks over the same changes, so you have something to actually
+ * play as a solo rather than copying one. All inside B minor pentatonic at the
+ * 7th fret — the shape on the song page.
+ */
+const BM_LICKS: Score = {
+  title: "B minor pentatonic licks — 8 bars",
+  beatsPerBar: 4,
+  bars: [
+    bar([[0, 10, 0], [0, 7, 1], [1, 10, 2], [1, 7, 3]], {
       chord: "Bm",
-      direction: "hold the barre — pick, don't strum",
+      direction: "lick 1 — straight down the top",
     }),
-    bar([[5, 2, 0], [3, 4, 1], [2, 3, 2], [1, 2, 3]], { chord: "F#" }),
-    bar([[4, 0, 0], [3, 2, 1], [2, 2, 2], [1, 2, 3]], { chord: "A" }),
-    bar([[5, 0, 0], [3, 2, 1], [2, 1, 2], [1, 0, 3]], { chord: "E" }),
-    bar([[5, 3, 0], [3, 0, 1], [2, 0, 2], [0, 3, 3]], { chord: "G" }),
-    bar([[3, 0, 0], [2, 2, 1], [1, 3, 2], [0, 2, 3]], { chord: "D" }),
-    bar([[5, 0, 0], [4, 2, 1], [3, 2, 2], [2, 0, 3]], { chord: "Em" }),
-    bar([[5, 2, 0], [3, 4, 1], [2, 3, 2], [1, 2, 3]], {
-      chord: "F#",
-      direction: "then round again",
+    bar([[2, 9, 0], [2, 7, 1], [3, 9, 2], [3, 7, 3]]),
+    bar([[2, 7, 0], [2, 9, 1], [1, 7, 2], [1, 10, 3]], {
+      chord: "A",
+      direction: "lick 2 — the answer, climbing",
     }),
+    bar([[0, 7, 0], [0, 10, 2]], { direction: "leave space here" }),
+    bar([[1, 7, 0], [1, 7, 0.5], [1, 10, 1], [2, 9, 2], [2, 7, 3]], {
+      chord: "G",
+      direction: "lick 3 — repeat a note, then fall",
+    }),
+    bar([[3, 9, 0], [3, 7, 1], [4, 9, 2], [4, 7, 3]], { chord: "D" }),
+    bar([[4, 7, 0], [5, 10, 1], [5, 7, 2]], {
+      chord: "Em",
+      direction: "lick 4 — down to the bass strings",
+    }),
+    bar([[4, 7, 0]], { chord: "F#", direction: "land on B, the home note, and hold" }),
   ],
 };
 
@@ -445,7 +521,23 @@ export const OPEN_SONGS: Song[] = [
     planDay: 38,
     teaches:
       "Holding a barre while picking single strings, and changing chords without a gap in the sound.",
-    note: "Eight bars, written out in full. This is the technique behind every arpeggiated barre-chord ballad — get this clean and Hotel California becomes a matter of learning the notes rather than learning the skill.",
+    note: "Sixteen bars written out in full, over the same eight changes as Hotel California. This is the technique the song actually demands — get it clean here and the song becomes a matter of learning notes rather than learning a skill.",
+  },
+  {
+    id: "open-bm-licks",
+    title: "B Minor Pentatonic Licks",
+    artist: "Written for this plan",
+    language: "english",
+    difficulty: 2,
+    chords: ["Bm", "A", "G", "D", "Em", "F#"],
+    loop: [],
+    score: BM_LICKS,
+    open: true,
+    bpm: 66,
+    planDay: 45,
+    soloScale: { rootFret: 7, label: "B minor pentatonic — box 1 at the 7th fret" },
+    teaches: "Four licks and, more importantly, where to leave gaps between them.",
+    note: "Original licks over the Bm–F#–A–E–G–D–Em–F# cycle, so you can solo over that progression with phrases of your own instead of copying someone's. Learn all four, then start swapping their order.",
   },
   {
     id: "open-barre-shifter",
