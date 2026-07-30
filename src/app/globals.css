@@ -1,26 +1,129 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Classic music palette — vintage amplifier and sheet-music warmth: aged cream
+ * on dark walnut, with brass as the single accent.
+ * The names are roles, not literal hues: amber = primary accent,
+ * good = success, heat = destructive.
+ */
+@theme {
+  --color-ink: #14100b;
+  --color-panel: #1e1811;
+  --color-panel-2: #272018;
+  --color-line: #3d3226;
+  --color-line-soft: #2c241a;
+  --color-text: #f4ead6;
+  --color-muted: #bba98a;
+  --color-dim: #8b7a62;
+
+  /* brass, the way it looks on an old faceplate */
+  --color-amber: #c9a54a;
+  --color-amber-deep: #9a7b28;
+  --color-oxblood: #9c3b34;
+
+  --color-good: #86a95c;
+  --color-heat: #b5443c;
+
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-display: var(--font-playfair), Georgia, "Times New Roman", serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--color-ink);
+  /* Stop iOS inflating text when the phone is propped up sideways. */
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background:
+    radial-gradient(100% 55% at 50% -8%, #2a2115 0%, transparent 60%),
+    var(--color-ink);
+  background-attachment: fixed;
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Tapping through a session shouldn't flash blue or select text. */
+button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+::selection {
+  background: var(--color-amber-deep);
+  color: #fff;
+}
+
+/* Serif for anything that should feel engraved rather than typed. */
+@utility display {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/* Small-caps label, like the legend under an amp knob. */
+@utility legend {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--color-dim);
+}
+
+@utility panel {
+  background: var(--color-panel);
+  border: 1px solid var(--color-line-soft);
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 0 rgba(244, 234, 214, 0.04) inset;
+}
+
+/* The one prominent control per screen. Brass plate, dark engraving. */
+@utility btn-brand {
+  background: linear-gradient(180deg, #dcb75c, var(--color-amber) 45%, #ab8a34);
+  color: #1a1409;
+  border-radius: 0.5rem;
+  border: 1px solid #7d6320;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 6px 16px -8px rgba(0, 0, 0, 0.7);
+}
+
+/* Double rule, borrowed from a printed score. */
+@utility rule {
+  border-top: 1px solid var(--color-line);
+  border-bottom: 1px solid var(--color-line-soft);
+  height: 3px;
+}
+
+/* Tab blocks scroll inside themselves so the page body never does. */
+@utility tabscroll {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line) transparent;
+}
+
+@keyframes pop {
+  0% { transform: scale(0.9); opacity: 0; }
+  60% { transform: scale(1.04); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@utility animate-pop {
+  animation: pop 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+@keyframes risefade {
+  from { transform: translateY(6px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@utility animate-rise {
+  animation: risefade 0.3s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
