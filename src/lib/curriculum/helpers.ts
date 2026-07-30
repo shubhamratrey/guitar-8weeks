@@ -20,7 +20,7 @@ const tune = (): LessonItem => ({
   kind: "warmup",
   minutes: 1,
   how: [
-    "Use the tuner on your phone or the clip-on. Low to high: E A D G B e.",
+    "Open the tuner in the panel on this screen and play one string at a time. Low to high: E A D G B e.",
     "Tune every single session. An out-of-tune guitar makes correct playing sound wrong.",
   ],
 });

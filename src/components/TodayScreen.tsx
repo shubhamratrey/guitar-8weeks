@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { LessonItemCard } from "./LessonItemCard";
 import { Metronome } from "./Metronome";
 import { StreakPill } from "./StreakPill";
+import { Tuner } from "./Tuner";
 import { useApp } from "@/lib/AppProvider";
 import {
   TOTAL_DAYS,
@@ -26,6 +27,7 @@ export function TodayScreen() {
   const [done, setDone] = useState<Set<string>>(new Set());
   const [showExtra, setShowExtra] = useState(false);
   const [showMetronome, setShowMetronome] = useState(false);
+  const [showTuner, setShowTuner] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
   const [notes, setNotes] = useState("");
   const [justLogged, setJustLogged] = useState(false);
@@ -253,6 +255,27 @@ export function TodayScreen() {
 
         {/* action rail — sticky on a laptop, just the bottom of the page on a phone */}
         <aside className="mt-4 space-y-3 lg:mt-0 lg:sticky lg:top-8">
+          {/* First thing every day of the plan asks you to do, so it lives here
+              rather than buried on the chords page. */}
+          {showTuner ? (
+            <div className="animate-rise">
+              <Tuner />
+              <button
+                onClick={() => setShowTuner(false)}
+                className="mt-2 text-[12px] text-dim underline decoration-dotted"
+              >
+                hide tuner
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowTuner(true)}
+              className="w-full rounded-md border border-line bg-panel px-4 py-3 text-left text-[13px] text-muted hover:border-amber/50"
+            >
+              Tune up first <span className="text-amber">→</span>
+            </button>
+          )}
+
           <div className="panel p-4">
             <p className="legend">Metronome</p>
             {showMetronome ? (

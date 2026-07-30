@@ -9,7 +9,7 @@ const TABS = [
   { href: "/", label: "Today" },
   { href: "/songs", label: "Song bank" },
   { href: "/progress", label: "Progress" },
-  { href: "/reference", label: "Chords" },
+  { href: "/reference", label: "Chords & tuner" },
 ];
 
 /** Desktop navigation. The bottom bar takes over below lg. */
