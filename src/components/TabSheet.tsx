@@ -41,7 +41,8 @@ export function TabSheet({
   const staffH = G.gap * (STRINGS - 1);
   /** Rhythm marks live under the staff so they don't collide with the strings. */
   const rhythmY = G.top + staffH + 16;
-  const systemH = rhythmY + 26;
+  const hasLyrics = bars.some((bar) => bar.lyric);
+  const systemH = rhythmY + (hasLyrics ? 46 : 26);
 
   const [playing, setPlaying] = useState(false);
   const [bpm, setBpm] = useState(initialBpm);
@@ -489,6 +490,20 @@ export function TabSheet({
                       fontFamily="var(--font-sans)"
                     >
                       {bar.direction}
+                    </text>
+                  )}
+
+                  {/* words, under everything, so you can see where you are */}
+                  {bar.lyric && (
+                    <text
+                      x={x + 4}
+                      y={rhythmY + (bar.direction ? 38 : 22)}
+                      fontSize={G.fret * 0.95}
+                      fill={isActive ? "var(--color-amber)" : "var(--color-muted)"}
+                      fontFamily="var(--font-sans)"
+                      fontWeight={isActive ? 600 : 400}
+                    >
+                      {bar.lyric}
                     </text>
                   )}
 

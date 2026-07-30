@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ScaleBox } from "./ScaleBox";
+import { SongWords } from "./SongWords";
 import { TabSheet } from "./TabSheet";
 import { chartFromLoop } from "@/lib/score";
 import { DIFFICULTY_LABEL, lessonSearchUrl, type Song } from "@/lib/songs";
@@ -89,6 +90,13 @@ export function SongStage({ song }: { song: Song }) {
             </div>
           )}
         </div>
+
+        {/* words you type yourself, for anything we can't ship lyrics for */}
+        {!song.open && (
+          <div className="mt-4">
+            <SongWords songId={song.id} />
+          </div>
+        )}
       </div>
     </div>
   );

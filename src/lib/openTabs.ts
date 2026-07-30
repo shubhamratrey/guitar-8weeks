@@ -9,7 +9,7 @@ import type { Song } from "./songs";
 
 const bar = (
   notes: [string: number, fret: number, beat: number][],
-  extra: { chord?: string; direction?: string } = {},
+  extra: { chord?: string; direction?: string; lyric?: string } = {},
 ) => ({
   ...extra,
   notes: notes.map(([string, fret, beat]) => ({ string, fret, beat })),
@@ -38,30 +38,33 @@ const MARY_LAMB: Score = {
   beatsPerBar: 4,
   bars: [
     // B string: C=1, D=3, E=5
-    bar([[1, 5, 0], [1, 3, 1], [1, 1, 2], [1, 3, 3]]),
-    bar([[1, 5, 0], [1, 5, 1], [1, 5, 2]]),
-    bar([[1, 3, 0], [1, 3, 1], [1, 3, 2]]),
-    bar([[1, 5, 0], [1, 5, 1], [1, 5, 2]]),
-    bar([[1, 5, 0], [1, 3, 1], [1, 1, 2], [1, 3, 3]]),
-    bar([[1, 5, 0], [1, 5, 1], [1, 5, 2], [1, 5, 3]]),
-    bar([[1, 3, 0], [1, 3, 1], [1, 5, 2], [1, 3, 3]]),
-    bar([[1, 1, 0]], { direction: "let it ring" }),
+    bar([[1, 5, 0], [1, 3, 1], [1, 1, 2], [1, 3, 3]], { lyric: "Ma-ry had a" }),
+    bar([[1, 5, 0], [1, 5, 1], [1, 5, 2]], { lyric: "lit-tle lamb" }),
+    bar([[1, 3, 0], [1, 3, 1], [1, 3, 2]], { lyric: "lit-tle lamb" }),
+    bar([[1, 5, 0], [1, 5, 1], [1, 5, 2]], { lyric: "lit-tle lamb" }),
+    bar([[1, 5, 0], [1, 3, 1], [1, 1, 2], [1, 3, 3]], { lyric: "Ma-ry had a" }),
+    bar([[1, 5, 0], [1, 5, 1], [1, 5, 2], [1, 5, 3]], { lyric: "lit-tle lamb, its" }),
+    bar([[1, 3, 0], [1, 3, 1], [1, 5, 2], [1, 3, 3]], { lyric: "fleece was white as" }),
+    bar([[1, 1, 0]], { direction: "let it ring", lyric: "snow" }),
   ],
 };
 
+/** In 3/4 so the 6/8 lilt lands right and the syllables sit on the beat. */
 const ROW_YOUR_BOAT: Score = {
   title: "Row, Row, Row Your Boat",
-  beatsPerBar: 4,
+  beatsPerBar: 3,
   bars: [
-    // B string: C=1, D=3, E=5, F=6, G=8
-    bar([[1, 1, 0], [1, 1, 2]]),
-    bar([[1, 1, 0], [1, 3, 2], [1, 5, 3]]),
-    bar([[1, 3, 0], [1, 5, 1], [1, 6, 2], [1, 8, 3]]),
-    bar([[1, 8, 0]], { direction: "hold" }),
-    bar([[0, 0, 0], [0, 0, 0.5], [0, 0, 1], [1, 8, 2], [1, 8, 2.5], [1, 8, 3]]),
-    bar([[1, 5, 0], [1, 5, 0.5], [1, 5, 1], [1, 3, 2], [1, 3, 2.5], [1, 3, 3]]),
-    bar([[1, 8, 0], [1, 6, 1], [1, 5, 2], [1, 3, 3]]),
-    bar([[1, 1, 0]], { direction: "home" }),
+    // B string: C=1, D=3, E=5, F=6, G=8. High e fret 8 is the C an octave up.
+    bar([[1, 1, 0], [1, 1, 1], [1, 1, 2]], { lyric: "Row, row, row" }),
+    bar([[1, 3, 0], [1, 5, 1]], { lyric: "your boat" }),
+    bar([[1, 5, 0], [1, 3, 1], [1, 5, 2]], { lyric: "gent-ly down" }),
+    bar([[1, 6, 0], [1, 8, 1]], { lyric: "the stream" }),
+    bar([[0, 8, 0], [0, 8, 1], [0, 8, 2]], { lyric: "Mer-ri-ly" }),
+    bar([[1, 8, 0], [1, 8, 1], [1, 8, 2]], { lyric: "mer-ri-ly" }),
+    bar([[1, 5, 0], [1, 5, 1], [1, 5, 2]], { lyric: "mer-ri-ly" }),
+    bar([[1, 1, 0], [1, 1, 1], [1, 1, 2]], { lyric: "mer-ri-ly" }),
+    bar([[1, 8, 0], [1, 6, 1], [1, 5, 2]], { lyric: "life is but" }),
+    bar([[1, 3, 0], [1, 1, 1]], { direction: "let it ring", lyric: "a dream" }),
   ],
 };
 
@@ -69,14 +72,19 @@ const FRERE_JACQUES: Score = {
   title: "Frère Jacques",
   beatsPerBar: 4,
   bars: [
-    bar([[1, 1, 0], [1, 3, 1], [1, 5, 2], [1, 1, 3]]),
-    bar([[1, 1, 0], [1, 3, 1], [1, 5, 2], [1, 1, 3]]),
-    bar([[1, 5, 0], [1, 6, 1], [1, 8, 2]]),
-    bar([[1, 5, 0], [1, 6, 1], [1, 8, 2]]),
-    bar([[1, 8, 0], [1, 10, 0.5], [1, 8, 1], [1, 6, 1.5], [1, 5, 2], [1, 1, 3]]),
-    bar([[1, 8, 0], [1, 10, 0.5], [1, 8, 1], [1, 6, 1.5], [1, 5, 2], [1, 1, 3]]),
-    bar([[1, 1, 0], [1, 0, 1], [1, 1, 2]]),
-    bar([[1, 1, 0], [1, 0, 1], [1, 1, 2]], { direction: "and round again" }),
+    bar([[1, 1, 0], [1, 3, 1], [1, 5, 2], [1, 1, 3]], { lyric: "Frè-re Jac-ques" }),
+    bar([[1, 1, 0], [1, 3, 1], [1, 5, 2], [1, 1, 3]], { lyric: "Frè-re Jac-ques" }),
+    bar([[1, 5, 0], [1, 6, 1], [1, 8, 2]], { lyric: "dor-mez vous?" }),
+    bar([[1, 5, 0], [1, 6, 1], [1, 8, 2]], { lyric: "dor-mez vous?" }),
+    bar([[1, 8, 0], [1, 10, 0.5], [1, 8, 1], [1, 6, 1.5], [1, 5, 2], [1, 1, 3]], {
+      lyric: "son-nez les ma-ti-nes",
+    }),
+    bar([[1, 8, 0], [1, 10, 0.5], [1, 8, 1], [1, 6, 1.5], [1, 5, 2], [1, 1, 3]], {
+      lyric: "son-nez les ma-ti-nes",
+    }),
+    // do–sol–do: the low G sits on the open G string, below the B string's C.
+    bar([[1, 1, 0], [2, 0, 1], [1, 1, 2]], { lyric: "ding ding dong" }),
+    bar([[1, 1, 0], [2, 0, 1], [1, 1, 2]], { direction: "and round again", lyric: "ding ding dong" }),
   ],
 };
 
@@ -189,10 +197,10 @@ const TWINKLE: Score = {
   title: "Twinkle, Twinkle, Little Star",
   beatsPerBar: 4,
   bars: [
-    bar([[1, 1, 0], [1, 1, 1], [0, 3, 2], [0, 3, 3]]),
-    bar([[0, 5, 0], [0, 5, 1], [0, 3, 2]]),
-    bar([[0, 1, 0], [0, 1, 1], [0, 0, 2], [0, 0, 3]]),
-    bar([[1, 3, 0], [1, 3, 1], [1, 1, 2]]),
+    bar([[1, 1, 0], [1, 1, 1], [0, 3, 2], [0, 3, 3]], { lyric: "Twin-kle twin-kle" }),
+    bar([[0, 5, 0], [0, 5, 1], [0, 3, 2]], { lyric: "lit-tle star" }),
+    bar([[0, 1, 0], [0, 1, 1], [0, 0, 2], [0, 0, 3]], { lyric: "how I won-der" }),
+    bar([[1, 3, 0], [1, 3, 1], [1, 1, 2]], { lyric: "what you are" }),
   ],
 };
 
@@ -200,10 +208,10 @@ const JINGLE_BELLS: Score = {
   title: "Jingle Bells — chorus",
   beatsPerBar: 4,
   bars: [
-    bar([[0, 0, 0], [0, 0, 1], [0, 0, 2]]),
-    bar([[0, 0, 0], [0, 0, 1], [0, 0, 2]]),
-    bar([[0, 0, 0], [0, 3, 1], [1, 1, 2], [1, 3, 3]]),
-    bar([[0, 0, 0]], { direction: "let it ring" }),
+    bar([[0, 0, 0], [0, 0, 1], [0, 0, 2]], { lyric: "Jin-gle bells" }),
+    bar([[0, 0, 0], [0, 0, 1], [0, 0, 2]], { lyric: "jin-gle bells" }),
+    bar([[0, 0, 0], [0, 3, 1], [1, 1, 2], [1, 3, 3]], { lyric: "jin-gle all the" }),
+    bar([[0, 0, 0]], { direction: "let it ring", lyric: "way" }),
   ],
 };
 

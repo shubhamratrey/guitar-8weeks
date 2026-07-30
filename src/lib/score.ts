@@ -13,6 +13,11 @@ export interface ScoreBar {
   notes?: ScoreNote[];
   /** Text above the bar, e.g. "let ring" or "P.M." */
   direction?: string;
+  /**
+   * Syllables sung over this bar, hyphenated so they line up with the notes.
+   * Only set for public-domain and traditional words.
+   */
+  lyric?: string;
 }
 
 export interface Score {
