@@ -52,6 +52,8 @@ export function TabSheet({
   const lastBeatRef = useRef(-1);
   const lastSystemRef = useRef(-1);
   const systemRefs = useRef<(SVGSVGElement | null)[]>([]);
+  const footerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<() => void>(() => {});
   const liveRef = useRef({ bpm, loop, withClick });
 
@@ -119,6 +121,35 @@ export function TabSheet({
   }, [total]);
 
   useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
+
+  /**
+   * The transport is fixed over the bottom of the viewport, so the sheet needs
+   * that much clear space beneath it — and the scrollport needs matching
+   * scroll-padding, or scrollIntoView parks the last system underneath it.
+   * Measured rather than hardcoded because the footer wraps taller on a phone.
+   * Written straight to the DOM to avoid a render pass on every resize.
+   */
+  useEffect(() => {
+    const footer = footerRef.current;
+    const content = contentRef.current;
+    if (!footer || !content) return;
+
+    const scroller = content.closest<HTMLElement>("[data-stage-scroll]");
+
+    const apply = () => {
+      const room = `${footer.offsetHeight + 28}px`;
+      content.style.paddingBottom = room;
+      if (scroller) scroller.style.scrollPaddingBottom = room;
+    };
+
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(footer);
+    return () => {
+      observer.disconnect();
+      if (scroller) scroller.style.scrollPaddingBottom = "";
+    };
+  }, [stage]);
 
   if (!bars.length) return null;
 
@@ -409,14 +440,14 @@ export function TabSheet({
   if (stage) {
     return (
       <>
-        <div className="space-y-4 pb-40">
-          {strum && (
-            <p className="font-mono text-[12px] text-muted">{strum}</p>
-          )}
+        {/* padding-bottom is set from the footer's measured height */}
+        <div ref={contentRef} className="space-y-4">
+          {strum && <p className="font-mono text-[12px] text-muted">{strum}</p>}
           {sheet}
         </div>
         {/* transport pinned to the bottom, so it's reachable mid-song */}
         <div
+          ref={footerRef}
           className="fixed bottom-0 left-0 right-0 z-30 border-t border-line bg-ink/95 backdrop-blur"
           style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         >

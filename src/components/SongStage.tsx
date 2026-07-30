@@ -13,7 +13,7 @@ export function SongStage({ song }: { song: Song }) {
   const score = song.score ?? (song.loop.length ? chartFromLoop(song.loop) : null);
 
   return (
-    <div className="fixed inset-0 z-40 overflow-y-auto bg-ink">
+    <div data-stage-scroll className="fixed inset-0 z-40 overflow-y-auto bg-ink">
       <div className="mx-auto w-full max-w-5xl px-4 py-4 sm:px-6">
         {/* header */}
         <div className="flex items-start justify-between gap-4">
