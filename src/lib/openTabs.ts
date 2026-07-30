@@ -146,6 +146,31 @@ const HAMMER_ROLL: Score = {
   ],
 };
 
+/**
+ * Written for this plan to drill the skill behind arpeggiated barre-chord
+ * ballads: hold a barre, pick the strings one at a time, change without a gap.
+ */
+const ARPEGGIO_STUDY: Score = {
+  title: "Arpeggio study in B minor",
+  beatsPerBar: 4,
+  bars: [
+    bar([[4, 2, 0], [3, 4, 1], [2, 4, 2], [1, 3, 3]], {
+      chord: "Bm",
+      direction: "hold the barre — pick, don't strum",
+    }),
+    bar([[5, 2, 0], [3, 4, 1], [2, 3, 2], [1, 2, 3]], { chord: "F#" }),
+    bar([[4, 0, 0], [3, 2, 1], [2, 2, 2], [1, 2, 3]], { chord: "A" }),
+    bar([[5, 0, 0], [3, 2, 1], [2, 1, 2], [1, 0, 3]], { chord: "E" }),
+    bar([[5, 3, 0], [3, 0, 1], [2, 0, 2], [0, 3, 3]], { chord: "G" }),
+    bar([[3, 0, 0], [2, 2, 1], [1, 3, 2], [0, 2, 3]], { chord: "D" }),
+    bar([[5, 0, 0], [4, 2, 1], [3, 2, 2], [2, 0, 3]], { chord: "Em" }),
+    bar([[5, 2, 0], [3, 4, 1], [2, 3, 2], [1, 2, 3]], {
+      chord: "F#",
+      direction: "then round again",
+    }),
+  ],
+};
+
 const BARRE_SHIFTER: Score = {
   title: "Barre chord shifter",
   beatsPerBar: 4,
@@ -396,6 +421,22 @@ export const OPEN_SONGS: Song[] = [
     bpm: 60,
     planDay: 43,
     teaches: "Getting several notes from one pick stroke.",
+  },
+  {
+    id: "open-arpeggio-study",
+    title: "Arpeggio Study in B Minor",
+    artist: "Exercise written for this plan",
+    language: "english",
+    difficulty: 3,
+    chords: ["Bm", "F#", "A", "E", "G", "D", "Em"],
+    loop: [],
+    score: ARPEGGIO_STUDY,
+    open: true,
+    bpm: 60,
+    planDay: 38,
+    teaches:
+      "Holding a barre while picking single strings, and changing chords without a gap in the sound.",
+    note: "Eight bars, written out in full. This is the technique behind every arpeggiated barre-chord ballad — get this clean and Hotel California becomes a matter of learning the notes rather than learning the skill.",
   },
   {
     id: "open-barre-shifter",
