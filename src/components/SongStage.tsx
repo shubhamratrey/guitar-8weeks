@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { LevelPicker, useLevel } from "./LevelPicker";
 import { ScaleBox } from "./ScaleBox";
 import { SongWords } from "./SongWords";
 import { TabSheet } from "./TabSheet";
+import { arrangeFor } from "@/lib/levels";
 import { chartFromLoop } from "@/lib/score";
 import { DIFFICULTY_LABEL, lessonSearchUrl, type Song } from "@/lib/songs";
 
@@ -12,7 +14,10 @@ import { DIFFICULTY_LABEL, lessonSearchUrl, type Song } from "@/lib/songs";
  * viewport, with the transport pinned to the bottom.
  */
 export function SongStage({ song }: { song: Song }) {
-  const score = song.score ?? (song.loop.length ? chartFromLoop(song.loop) : null);
+  const level = useLevel();
+  const arrangement = arrangeFor(song, level);
+  // A written tab keeps its own notes; only a chord chart gets re-voiced.
+  const score = song.score ?? (arrangement.loop.length ? chartFromLoop(arrangement.loop) : null);
 
   return (
     <div data-stage-scroll className="fixed inset-0 z-40 overflow-y-auto bg-ink">
@@ -63,13 +68,21 @@ export function SongStage({ song }: { song: Song }) {
           </section>
         )}
 
+        {score && (
+          <div className="mt-5">
+            <LevelPicker hint={arrangement.hint} />
+          </div>
+        )}
+
         <div className="mt-5">
           {score ? (
             <TabSheet
+              // Remount on a level change so the transport picks up the new tempo.
+              key={level}
               score={score}
-              strum={song.strum}
+              strum={arrangement.strum}
               capo={song.capo}
-              initialBpm={song.bpm ?? 70}
+              initialBpm={arrangement.bpm}
               stage
             />
           ) : (
