@@ -36,7 +36,9 @@ export function TabSheet({
   const { bars, beatsPerBar } = score;
   const G = stage ? STAGE : INLINE;
   const staffH = G.gap * (STRINGS - 1);
-  const systemH = G.top + staffH + 26;
+  /** Rhythm marks live under the staff so they don't collide with the strings. */
+  const rhythmY = G.top + staffH + 16;
+  const systemH = rhythmY + 26;
 
   const [playing, setPlaying] = useState(false);
   const [bpm, setBpm] = useState(initialBpm);
@@ -182,24 +184,24 @@ export function TabSheet({
   );
 
   const shapes = (currentChord || nextChord) && (
-    <div className="flex items-end gap-5 rounded-md border border-line-soft bg-panel-2 p-3.5">
+    <div className="flex items-start gap-6 rounded-md border border-line-soft bg-panel-2 p-4">
       {currentChord && (
         <div>
-          <p className="legend mb-1.5">Playing</p>
+          <p className="legend mb-2">Playing</p>
           {getChord(currentChord) ? (
-            <ChordDiagram id={currentChord} size={stage ? 92 : 80} />
+            <ChordDiagram id={currentChord} size={stage ? 150 : 120} />
           ) : (
-            <p className="display text-[22px] text-text">{currentChord}</p>
+            <p className="display text-[26px] text-text">{currentChord}</p>
           )}
         </div>
       )}
       {nextChord && (
-        <div className="opacity-55">
-          <p className="legend mb-1.5">Next</p>
+        <div className="opacity-70">
+          <p className="legend mb-2">Next</p>
           {getChord(nextChord) ? (
-            <ChordDiagram id={nextChord} size={stage ? 70 : 62} />
+            <ChordDiagram id={nextChord} size={stage ? 120 : 100} showStringNames={false} />
           ) : (
-            <p className="display text-[18px] text-text">{nextChord}</p>
+            <p className="display text-[20px] text-text">{nextChord}</p>
           )}
         </div>
       )}
@@ -335,7 +337,7 @@ export function TabSheet({
                   {bar.direction && (
                     <text
                       x={x + 4}
-                      y={G.top + staffH + 17}
+                      y={rhythmY + 20}
                       fontSize={G.fret * 0.8}
                       fill="var(--color-dim)"
                       fontFamily="var(--font-sans)"
@@ -344,21 +346,21 @@ export function TabSheet({
                     </text>
                   )}
 
-                  {/* rhythm slashes when there are no written notes */}
+                  {/* rhythm marks, in their own lane below the staff */}
                   {!bar.notes &&
                     Array.from({ length: beatsPerBar }, (_, b) => {
                       const bx = x + (b + 0.5) * (G.barW / beatsPerBar);
-                      const mid = G.top + staffH / 2;
                       const lit = isActive && Math.floor(beatInBar) === b;
                       return (
                         <line
                           key={b}
                           x1={bx - 5}
-                          y1={mid + 7}
+                          y1={rhythmY + 6}
                           x2={bx + 5}
-                          y2={mid - 7}
+                          y2={rhythmY - 6}
                           stroke={lit ? "var(--color-amber)" : "var(--color-muted)"}
-                          strokeWidth={lit ? 2.6 : 1.6}
+                          strokeWidth={lit ? 3 : 1.8}
+                          strokeLinecap="round"
                         />
                       );
                     })}

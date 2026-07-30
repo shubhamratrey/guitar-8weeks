@@ -22,10 +22,141 @@ const ODE_TO_JOY: Score = {
   beatsPerBar: 4,
   bars: [
     // all on the B string: C=1, D=3, E=5, F=6, G=8
-    bar([[1, 5, 0], [1, 5, 1], [1, 6, 2], [1, 8, 3]]),
+    bar([[1, 5, 0], [1, 5, 1], [1, 6, 2], [1, 8, 3]], { direction: "first phrase" }),
     bar([[1, 8, 0], [1, 6, 1], [1, 5, 2], [1, 3, 3]]),
     bar([[1, 1, 0], [1, 1, 1], [1, 3, 2], [1, 5, 3]]),
-    bar([[1, 5, 0], [1, 3, 2]], { direction: "let the last note ring" }),
+    bar([[1, 5, 0], [1, 3, 2]]),
+    bar([[1, 5, 0], [1, 5, 1], [1, 6, 2], [1, 8, 3]], { direction: "repeat, new ending" }),
+    bar([[1, 8, 0], [1, 6, 1], [1, 5, 2], [1, 3, 3]]),
+    bar([[1, 1, 0], [1, 1, 1], [1, 3, 2], [1, 5, 3]]),
+    bar([[1, 3, 0], [1, 1, 2]], { direction: "resolve home" }),
+  ],
+};
+
+const MARY_LAMB: Score = {
+  title: "Mary Had a Little Lamb",
+  beatsPerBar: 4,
+  bars: [
+    // B string: C=1, D=3, E=5
+    bar([[1, 5, 0], [1, 3, 1], [1, 1, 2], [1, 3, 3]]),
+    bar([[1, 5, 0], [1, 5, 1], [1, 5, 2]]),
+    bar([[1, 3, 0], [1, 3, 1], [1, 3, 2]]),
+    bar([[1, 5, 0], [1, 5, 1], [1, 5, 2]]),
+    bar([[1, 5, 0], [1, 3, 1], [1, 1, 2], [1, 3, 3]]),
+    bar([[1, 5, 0], [1, 5, 1], [1, 5, 2], [1, 5, 3]]),
+    bar([[1, 3, 0], [1, 3, 1], [1, 5, 2], [1, 3, 3]]),
+    bar([[1, 1, 0]], { direction: "let it ring" }),
+  ],
+};
+
+const ROW_YOUR_BOAT: Score = {
+  title: "Row, Row, Row Your Boat",
+  beatsPerBar: 4,
+  bars: [
+    // B string: C=1, D=3, E=5, F=6, G=8
+    bar([[1, 1, 0], [1, 1, 2]]),
+    bar([[1, 1, 0], [1, 3, 2], [1, 5, 3]]),
+    bar([[1, 3, 0], [1, 5, 1], [1, 6, 2], [1, 8, 3]]),
+    bar([[1, 8, 0]], { direction: "hold" }),
+    bar([[0, 0, 0], [0, 0, 0.5], [0, 0, 1], [1, 8, 2], [1, 8, 2.5], [1, 8, 3]]),
+    bar([[1, 5, 0], [1, 5, 0.5], [1, 5, 1], [1, 3, 2], [1, 3, 2.5], [1, 3, 3]]),
+    bar([[1, 8, 0], [1, 6, 1], [1, 5, 2], [1, 3, 3]]),
+    bar([[1, 1, 0]], { direction: "home" }),
+  ],
+};
+
+const FRERE_JACQUES: Score = {
+  title: "Frère Jacques",
+  beatsPerBar: 4,
+  bars: [
+    bar([[1, 1, 0], [1, 3, 1], [1, 5, 2], [1, 1, 3]]),
+    bar([[1, 1, 0], [1, 3, 1], [1, 5, 2], [1, 1, 3]]),
+    bar([[1, 5, 0], [1, 6, 1], [1, 8, 2]]),
+    bar([[1, 5, 0], [1, 6, 1], [1, 8, 2]]),
+    bar([[1, 8, 0], [1, 10, 0.5], [1, 8, 1], [1, 6, 1.5], [1, 5, 2], [1, 1, 3]]),
+    bar([[1, 8, 0], [1, 10, 0.5], [1, 8, 1], [1, 6, 1.5], [1, 5, 2], [1, 1, 3]]),
+    bar([[1, 1, 0], [1, 0, 1], [1, 1, 2]]),
+    bar([[1, 1, 0], [1, 0, 1], [1, 1, 2]], { direction: "and round again" }),
+  ],
+};
+
+/** The traditional 12-bar form, arranged here as a shuffle in A. */
+const BLUES_SHUFFLE: Score = {
+  title: "Blues Shuffle in A — full 12 bars",
+  beatsPerBar: 4,
+  bars: [
+    ...Array.from({ length: 4 }, (_, i) =>
+      bar(
+        [[4, 0, 0], [3, 2, 0], [4, 0, 1], [3, 4, 1], [4, 0, 2], [3, 2, 2], [4, 0, 3], [3, 4, 3]],
+        i === 0 ? { chord: "A5", direction: "shuffle — long, short" } : { chord: "A5" },
+      ),
+    ),
+    ...Array.from({ length: 2 }, () =>
+      bar(
+        [[4, 5, 0], [3, 7, 0], [4, 5, 1], [3, 9, 1], [4, 5, 2], [3, 7, 2], [4, 5, 3], [3, 9, 3]],
+        { chord: "D5" },
+      ),
+    ),
+    ...Array.from({ length: 2 }, () =>
+      bar(
+        [[4, 0, 0], [3, 2, 0], [4, 0, 1], [3, 4, 1], [4, 0, 2], [3, 2, 2], [4, 0, 3], [3, 4, 3]],
+        { chord: "A5" },
+      ),
+    ),
+    bar(
+      [[4, 7, 0], [3, 9, 0], [4, 7, 1], [3, 11, 1], [4, 7, 2], [3, 9, 2], [4, 7, 3], [3, 11, 3]],
+      { chord: "E5", direction: "the turnaround" },
+    ),
+    bar(
+      [[4, 5, 0], [3, 7, 0], [4, 5, 1], [3, 9, 1], [4, 5, 2], [3, 7, 2], [4, 5, 3], [3, 9, 3]],
+      { chord: "D5" },
+    ),
+    ...Array.from({ length: 2 }, () =>
+      bar(
+        [[4, 0, 0], [3, 2, 0], [4, 0, 1], [3, 4, 1], [4, 0, 2], [3, 2, 2], [4, 0, 3], [3, 4, 3]],
+        { chord: "A5" },
+      ),
+    ),
+  ],
+};
+
+const ALT_PICKING_LADDER: Score = {
+  title: "Alternate picking ladder",
+  beatsPerBar: 4,
+  bars: [
+    bar([[5, 5, 0], [5, 7, 1], [5, 8, 2], [5, 7, 3]], { direction: "down up down up, no exceptions" }),
+    bar([[4, 5, 0], [4, 7, 1], [4, 8, 2], [4, 7, 3]]),
+    bar([[3, 5, 0], [3, 7, 1], [3, 8, 2], [3, 7, 3]]),
+    bar([[2, 5, 0], [2, 7, 1], [2, 8, 2], [2, 7, 3]]),
+    bar([[1, 5, 0], [1, 7, 1], [1, 8, 2], [1, 7, 3]]),
+    bar([[0, 5, 0], [0, 7, 1], [0, 8, 2], [0, 7, 3]], { direction: "then back down" }),
+  ],
+};
+
+const HAMMER_ROLL: Score = {
+  title: "Hammer-on and pull-off rolls",
+  beatsPerBar: 4,
+  bars: [
+    bar([[2, 5, 0], [2, 7, 0.5], [2, 5, 1], [2, 7, 1.5], [2, 5, 2], [2, 7, 2.5], [2, 5, 3]], {
+      direction: "pick only the first note of each pair",
+    }),
+    bar([[1, 5, 0], [1, 8, 0.5], [1, 5, 1], [1, 8, 1.5], [1, 5, 2], [1, 8, 2.5], [1, 5, 3]]),
+    bar([[0, 5, 0], [0, 8, 0.5], [0, 5, 1], [0, 8, 1.5], [0, 5, 2], [0, 8, 2.5], [0, 5, 3]]),
+    bar([[2, 5, 0], [2, 7, 1], [2, 5, 2]], { direction: "slow it right down to finish" }),
+  ],
+};
+
+const BARRE_SHIFTER: Score = {
+  title: "Barre chord shifter",
+  beatsPerBar: 4,
+  bars: [
+    bar([[5, 5, 0], [4, 7, 0], [3, 7, 0], [5, 5, 2], [4, 7, 2], [3, 7, 2]], {
+      chord: "A",
+      direction: "index barres fret 5",
+    }),
+    bar([[5, 3, 0], [4, 5, 0], [3, 5, 0], [5, 3, 2], [4, 5, 2], [3, 5, 2]], { chord: "G" }),
+    bar([[5, 8, 0], [4, 10, 0], [3, 10, 0], [5, 8, 2], [4, 10, 2], [3, 10, 2]], { chord: "C" }),
+    bar([[5, 5, 0], [4, 7, 0], [3, 7, 0]], { chord: "A", direction: "release, don't drag" }),
   ],
 };
 
@@ -183,6 +314,102 @@ export const OPEN_SONGS: Song[] = [
     bpm: 60,
     teaches: "The major scale across three strings. Sing the syllables as you play them.",
     note: "This is the same scale Western players call 'do re mi'. Learning it by ear pays off in every song you'll play.",
+  },
+  {
+    id: "open-mary-lamb",
+    title: "Mary Had a Little Lamb",
+    artist: "Traditional · public domain",
+    language: "english",
+    difficulty: 1,
+    chords: [],
+    loop: [],
+    score: MARY_LAMB,
+    open: true,
+    bpm: 76,
+    teaches: "Three notes on one string. The gentlest possible first melody.",
+  },
+  {
+    id: "open-row-your-boat",
+    title: "Row, Row, Row Your Boat",
+    artist: "Traditional · public domain",
+    language: "english",
+    difficulty: 1,
+    chords: [],
+    loop: [],
+    score: ROW_YOUR_BOAT,
+    open: true,
+    bpm: 84,
+    teaches: "Holding long notes, then a run of quick repeated ones.",
+  },
+  {
+    id: "open-frere-jacques",
+    title: "Frère Jacques",
+    artist: "Traditional · public domain",
+    language: "english",
+    difficulty: 1,
+    chords: [],
+    loop: [],
+    score: FRERE_JACQUES,
+    open: true,
+    bpm: 88,
+    teaches: "Repeating phrases and your first eighth-note run.",
+  },
+  {
+    id: "open-blues-shuffle",
+    title: "Blues Shuffle in A",
+    artist: "Traditional form · arranged for this plan",
+    language: "english",
+    difficulty: 2,
+    chords: ["A5", "D5", "E5"],
+    loop: [],
+    score: BLUES_SHUFFLE,
+    open: true,
+    bpm: 70,
+    planDay: 31,
+    teaches: "The full 12-bar form with the classic shuffle figure, note for note.",
+    note: "The whole twelve bars are written out. Loop it and solo over the top with the pentatonic shape.",
+  },
+  {
+    id: "open-alt-picking",
+    title: "Alternate Picking Ladder",
+    artist: "Exercise written for this plan",
+    language: "english",
+    difficulty: 2,
+    chords: [],
+    loop: [],
+    score: ALT_PICKING_LADDER,
+    open: true,
+    bpm: 65,
+    planDay: 30,
+    teaches: "Strict down-up picking across all six strings.",
+  },
+  {
+    id: "open-hammer-roll",
+    title: "Hammer-on & Pull-off Rolls",
+    artist: "Exercise written for this plan",
+    language: "english",
+    difficulty: 2,
+    chords: [],
+    loop: [],
+    score: HAMMER_ROLL,
+    open: true,
+    bpm: 60,
+    planDay: 43,
+    teaches: "Getting several notes from one pick stroke.",
+  },
+  {
+    id: "open-barre-shifter",
+    title: "Barre Chord Shifter",
+    artist: "Exercise written for this plan",
+    language: "english",
+    difficulty: 3,
+    chords: ["A", "G", "C"],
+    loop: [],
+    score: BARRE_SHIFTER,
+    open: true,
+    bpm: 60,
+    planDay: 38,
+    teaches: "Moving a barre shape cleanly without dragging across the strings.",
   },
   {
     id: "open-house-rising-sun",

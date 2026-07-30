@@ -3,11 +3,9 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ChordRow } from "@/components/ChordDiagram";
-import { OPEN_SONGS } from "@/lib/openTabs";
 import { getChord } from "@/lib/chords";
-import { DIFFICULTY_LABEL, SONGS, type Language, type Song } from "@/lib/songs";
-
-const ALL: Song[] = [...OPEN_SONGS, ...SONGS];
+import { ALL_SONGS } from "@/lib/songLibrary";
+import { DIFFICULTY_LABEL, type Language, type Song } from "@/lib/songs";
 
 type Filter = "all" | Language | "fulltab";
 
@@ -18,7 +16,7 @@ export default function SongsPage() {
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return ALL.filter((s) => {
+    return ALL_SONGS.filter((s) => {
       if (filter === "fulltab" && !s.score) return false;
       if ((filter === "hindi" || filter === "english") && s.language !== filter) return false;
       if (level !== 0 && s.difficulty !== level) return false;
