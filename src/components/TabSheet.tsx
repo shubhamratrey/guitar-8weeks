@@ -20,6 +20,16 @@ const STAGE = { barW: 190, left: 28, top: 44, gap: 19, chord: 17, fret: 13.5, do
 const ROW_LABELS = ["e", "B", "G", "D", "A", "E"];
 
 /**
+ * Trim text to what fits inside one bar. SVG text doesn't wrap or clip, so a
+ * long direction would otherwise print straight over the next bar's.
+ */
+function fitToBar(text: string, barWidth: number, fontSize: number): string {
+  const budget = Math.floor((barWidth - 8) / (fontSize * 0.55));
+  if (text.length <= budget) return text;
+  return `${text.slice(0, Math.max(1, budget - 1)).trimEnd()}…`;
+}
+
+/**
  * The notation surface: a tab staff that wraps across systems like printed
  * music, with bar numbers, chord names, and a playhead that sweeps in time.
  */
@@ -460,6 +470,22 @@ export function TabSheet({
               const index = system.offset + i;
               const isActive = index === activeBar;
 
+              /*
+               * Size the glyphs to the busiest spacing in this bar. Eighth notes
+               * sit half as far apart as quarters, so a fixed radius overlaps.
+               */
+              const beatW = G.barW / beatsPerBar;
+              const xOf = (beat: number) => x + (beat + 0.5) * beatW;
+              const beats = [...new Set((bar.notes ?? []).map((n) => n.beat))].sort(
+                (a, b) => a - b,
+              );
+              let tightest = beatW;
+              for (let b = 1; b < beats.length; b += 1) {
+                tightest = Math.min(tightest, (beats[b] - beats[b - 1]) * beatW);
+              }
+              const dotR = Math.max(5, Math.min(G.dot, tightest * 0.46));
+              const noteFont = Math.max(7.5, Math.min(G.fret, dotR * 1.45));
+
               return (
                 <g key={index}>
                   {isActive && (
@@ -512,7 +538,9 @@ export function TabSheet({
                       fill="var(--color-dim)"
                       fontFamily="var(--font-sans)"
                     >
-                      {bar.direction}
+                      {/* Clipped to its own bar so a long note can't run into
+                          the next bar's text. */}
+                      {fitToBar(bar.direction, G.barW, G.fret * 0.8)}
                     </text>
                   )}
 
@@ -583,40 +611,86 @@ export function TabSheet({
                       );
                     })}
 
-                  {/* written fret numbers, with their articulation marks */}
+                  {/* written fret numbers */}
                   {bar.notes?.map((note, n) => {
-                    const bx = x + (note.beat + 0.5) * (G.barW / beatsPerBar);
+                    const bx = xOf(note.beat);
                     const by = G.top + note.string * G.gap;
                     const lit =
                       isActive && Math.floor(beatInBar) === Math.floor(note.beat);
-                    const mark = note.art === "s" ? "/" : note.art === "v" ? "~" : note.art;
                     return (
-                      <g key={n}>
-                        <circle cx={bx} cy={by} r={G.dot} fill="var(--color-ink)" />
+                      <g key={`n-${n}`}>
+                        <circle cx={bx} cy={by} r={dotR} fill="var(--color-ink)" />
                         <text
                           x={bx}
-                          y={by + G.fret * 0.34}
+                          y={by + noteFont * 0.34}
                           textAnchor="middle"
-                          fontSize={G.fret}
+                          fontSize={noteFont}
                           fontWeight={lit ? 700 : 500}
                           fill={lit ? "var(--color-amber)" : "var(--color-text)"}
                           fontFamily="var(--font-mono)"
                         >
                           {note.fret}
                         </text>
-                        {mark && (
+                      </g>
+                    );
+                  })}
+
+                  {/*
+                   * Articulations sit above the staff, not beside the numbers —
+                   * at eighth-note spacing there is no room beside them, and a
+                   * slur arc is how printed tab shows a hammer-on anyway.
+                   */}
+                  {bar.notes?.map((note, n) => {
+                    if (!note.art) return null;
+                    const bx = xOf(note.beat);
+                    const by = G.top + note.string * G.gap;
+                    const lift = by - dotR - 3;
+
+                    if (note.art === "h" || note.art === "p") {
+                      const from = (bar.notes ?? [])
+                        .filter((o) => o.string === note.string && o.beat < note.beat)
+                        .sort((a, b) => b.beat - a.beat)[0];
+                      if (!from) return null;
+                      const fx = xOf(from.beat);
+                      const mid = (fx + bx) / 2;
+                      return (
+                        <g key={`a-${n}`}>
+                          <path
+                            d={`M ${fx + dotR * 0.5} ${lift} Q ${mid} ${lift - 7} ${bx - dotR * 0.5} ${lift}`}
+                            fill="none"
+                            stroke="var(--color-amber)"
+                            strokeWidth={1.2}
+                          />
                           <text
-                            x={bx + G.dot + 1}
-                            y={by + G.fret * 0.34}
-                            fontSize={G.fret * 0.82}
+                            x={mid}
+                            y={lift - 8}
+                            textAnchor="middle"
+                            fontSize={noteFont * 0.75}
                             fill="var(--color-amber)"
                             fontFamily="var(--font-mono)"
                           >
-                            {mark}
-                            {note.to !== undefined ? note.to : ""}
+                            {note.art}
                           </text>
-                        )}
-                      </g>
+                        </g>
+                      );
+                    }
+
+                    // Slides and bends name their target, the way tab writes 7b9.
+                    const label =
+                      note.art === "v"
+                        ? "~"
+                        : `${note.art === "s" ? "/" : "b"}${note.to ?? ""}`;
+                    return (
+                      <text
+                        key={`a-${n}`}
+                        x={bx + dotR + 1}
+                        y={by + noteFont * 0.34}
+                        fontSize={noteFont * 0.8}
+                        fill="var(--color-amber)"
+                        fontFamily="var(--font-mono)"
+                      >
+                        {label}
+                      </text>
                     );
                   })}
                 </g>

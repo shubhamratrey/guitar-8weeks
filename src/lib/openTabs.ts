@@ -162,7 +162,7 @@ const HAMMER_ROLL: Score = {
   title: "Hammer-on and pull-off rolls",
   beatsPerBar: 4,
   bars: [
-    artBar(roll(2, 5, 7), { direction: "pick only the first note of each pair" }),
+    artBar(roll(2, 5, 7), { direction: "pick only the first of each pair" }),
     artBar(roll(1, 5, 8)),
     artBar(roll(0, 5, 8)),
     artBar(
@@ -186,28 +186,28 @@ const SLIDE_AND_BEND: Score = {
         { string: 2, fret: 5, beat: 0, art: "s", to: 7 },
         { string: 2, fret: 7, beat: 2, art: "s", to: 5 },
       ],
-      { direction: "slide up, then back — keep the pressure on" },
+      { direction: "slide up, then back" },
     ),
     artBar(
       [
         { string: 2, fret: 5, beat: 0, art: "s", to: 12 },
         { string: 2, fret: 12, beat: 2, art: "s", to: 5 },
       ],
-      { direction: "a long one, landing exactly on 12" },
+      { direction: "long — land on 12" },
     ),
     artBar(
       [
         { string: 2, fret: 7, beat: 0, art: "b", to: 9 },
         { string: 2, fret: 7, beat: 2, art: "b", to: 9 },
       ],
-      { direction: "bend a full step — aim for the pitch of fret 9" },
+      { direction: "full step, up to 9" },
     ),
     artBar(
       [
         { string: 1, fret: 8, beat: 0, art: "b", to: 9 },
         { string: 1, fret: 8, beat: 2, art: "v" },
       ],
-      { direction: "half-step bend, then hold with vibrato" },
+      { direction: "half bend, then hold" },
     ),
   ],
 };
