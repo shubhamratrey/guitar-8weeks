@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ScaleBox } from "./ScaleBox";
 import { TabSheet } from "./TabSheet";
 import { chartFromLoop } from "@/lib/score";
 import { DIFFICULTY_LABEL, lessonSearchUrl, type Song } from "@/lib/songs";
@@ -45,6 +46,20 @@ export function SongStage({ song }: { song: Song }) {
           <p className="mt-3 border-l-2 border-amber pl-3.5 text-[13px] leading-relaxed text-muted">
             {song.note}
           </p>
+        )}
+
+        {song.soloScale && (
+          <section className="mt-5 space-y-2.5">
+            <div>
+              <p className="legend">Solo over it</p>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-muted">
+                These changes cycle, so one scale shape covers the whole song. Loop the
+                chart below and improvise over the top — that beats copying a solo note
+                for note.
+              </p>
+            </div>
+            <ScaleBox rootFret={song.soloScale.rootFret} label={song.soloScale.label} />
+          </section>
         )}
 
         <div className="mt-5">

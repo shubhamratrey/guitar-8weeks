@@ -33,6 +33,11 @@ export interface Song {
   strum?: string;
   /** Sensible starting tempo for playing along. */
   bpm?: number;
+  /**
+   * The scale to improvise with over these changes. Lets you solo over a song
+   * without needing anyone's transcription of the recorded solo.
+   */
+  soloScale?: { rootFret: number; label: string };
   /** What playing this song actually trains. */
   teaches: string;
   /** Day in the 56-day plan where this song comes up, if it does. */

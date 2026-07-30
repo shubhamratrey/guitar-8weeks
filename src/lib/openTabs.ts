@@ -391,8 +391,9 @@ export const OPEN_SONGS: Song[] = [
     open: true,
     bpm: 70,
     planDay: 31,
+    soloScale: { rootFret: 5, label: "A minor pentatonic — box 1 at the 5th fret" },
     teaches: "The full 12-bar form with the classic shuffle figure, note for note.",
-    note: "The whole twelve bars are written out. Loop it and solo over the top with the pentatonic shape.",
+    note: "The whole twelve bars are written out. Loop it and improvise over the top — this is the single best thing you can practise for lead playing.",
   },
   {
     id: "open-alt-picking",
@@ -517,6 +518,7 @@ export const OPEN_SONGS: Song[] = [
     open: true,
     bpm: 70,
     planDay: 31,
+    soloScale: { rootFret: 5, label: "A minor pentatonic — box 1 at the 5th fret" },
     teaches: "The form behind half of all popular music. Learn it and you can jam with anyone.",
   },
   {

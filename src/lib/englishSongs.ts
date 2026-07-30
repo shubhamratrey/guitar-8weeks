@@ -26,6 +26,7 @@ interface Opts {
   bpm?: number;
   note?: string;
   planDay?: number;
+  soloScale?: { rootFret: number; label: string };
 }
 
 const S = (
@@ -49,6 +50,7 @@ const S = (
   bpm: o.bpm,
   note: o.note,
   planDay: o.planDay,
+  soloScale: o.soloScale,
 });
 
 export const ENGLISH_SONGS: Song[] = [
@@ -206,9 +208,10 @@ export const ENGLISH_SONGS: Song[] = [
     { loop: ["D", "C", "G", "D"], strum: SIMPLE, bpm: 62,
       note: "The chords are easy; the intro riff is not. Learn it at half speed." }),
   S("hotel-california", "Hotel California", "Eagles", 3,
-    "Eight barre-heavy changes in a row. The best arpeggio workout on this list.",
+    "Eight barre-heavy changes in a row, and the best song here to learn soloing over.",
     { loop: ["Bm", "F#", "A", "E", "G", "D", "Em", "F#"], strum: PICKED, bpm: 74,
-      note: "Eight different chords, three of them barres — this is a week-8 target, not a week-3 one. Play it at 50bpm before you try 74." }),
+      soloScale: { rootFret: 7, label: "B minor pentatonic — box 1 at the 7th fret" },
+      note: "The song sits in B minor and the whole thing cycles these eight bars, including under the solo. So you can improvise over it with one shape: the pentatonic box you learn in week 5, moved to fret 7. Eight chords with three barres makes this a week-8 target — run it at 50bpm long before you try 74. On the recording the guitars are capo 7 on twelve-strings, which is why it rings the way it does; this chart works without one." }),
   S("stairway", "Stairway to Heaven", "Led Zeppelin", 3,
     "Fingerpicked melody and bass at once. A months-long project.",
     { chords: ["Am", "C", "D", "Fmaj7", "G"],
