@@ -2,12 +2,11 @@
 
 import { getAudioContext } from "./audio";
 import { getChord } from "./chords";
+// String frequencies live in pitch.ts so the synth and the tuner share one
+// definition of what each string sounds like.
+import { noteHz } from "./pitch";
 
-/** Open string pitches in standard tuning, high e → low E. */
-const OPEN_HZ = [329.63, 246.94, 196.0, 146.83, 110.0, 82.41];
-
-export const noteHz = (stringIndex: number, fret: number) =>
-  OPEN_HZ[stringIndex] * 2 ** (fret / 12);
+export { noteHz };
 
 const buffers = new Map<string, AudioBuffer>();
 

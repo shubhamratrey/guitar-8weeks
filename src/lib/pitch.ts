@@ -1,71 +1,155 @@
-/** Open string pitches in standard tuning, thickest first. */
-export const OPEN_STRINGS = [
-  { label: "E", octave: 2, hz: 82.41 },
-  { label: "A", octave: 2, hz: 110.0 },
-  { label: "D", octave: 3, hz: 146.83 },
-  { label: "G", octave: 3, hz: 196.0 },
-  { label: "B", octave: 3, hz: 246.94 },
-  { label: "e", octave: 4, hz: 329.63 },
-];
+/**
+ * Open string pitches in standard tuning, indexed the way tab rows are: 0 is
+ * the high e, 5 the low E. The single source of truth for both the synth and
+ * the tuner, so the two can't disagree about what a string sounds like.
+ */
+export const STRING_HZ = [329.63, 246.94, 196.0, 146.83, 110.0, 82.41];
+
+const STRING_LABELS = ["e", "B", "G", "D", "A", "E"];
+
+/** Pitch of a fretted note. Twelve frets to an octave. */
+export const noteHz = (stringIndex: number, fret: number) =>
+  STRING_HZ[stringIndex] * 2 ** (fret / 12);
+
+/** The same strings thickest-first, which is the order a tuner displays them. */
+export const OPEN_STRINGS = STRING_HZ.map((hz, i) => ({
+  label: STRING_LABELS[i],
+  hz,
+  /** Index into STRING_HZ, for talking to the synth. */
+  stringIndex: i,
+})).reverse();
 
 const NOTE_NAMES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
 
+const MIN_HZ = 70; // below the low E, with headroom
+const MAX_HZ = 1320; // above the high e at the 12th fret
+/** Coarse search runs on a 4x-decimated copy; the fundamentals are all low. */
+const DECIMATE = 4;
+
+export interface Detection {
+  hz: number;
+  /** Normalised correlation at the chosen period, 0–1. */
+  confidence: number;
+}
+
 /**
- * Autocorrelation pitch detection.
+ * Normalised autocorrelation, run in two stages.
  *
- * A guitar's waveform is strongly periodic, so the lag at which the signal best
- * matches a delayed copy of itself is one period. Peak-picking skips the initial
- * decline from lag 0, then parabolic interpolation between the samples either
- * side of the peak gets sub-sample accuracy — without it, resolution at the
- * high E is far too coarse to read cents.
+ * Three things matter for a steady reading:
+ *
+ * 1. Normalising by the energy of both windows, so `confidence` means the same
+ *    thing whether you played hard or soft, and the gate below is meaningful.
+ * 2. Choosing the EARLIEST strong peak rather than the tallest. The tallest is
+ *    frequently at twice the true period, which reads an octave low — the
+ *    classic autocorrelation failure, and worst on the bass strings.
+ * 3. A coarse pass on a decimated copy, refined at full rate only near the
+ *    winner. Searching every lag at 44.1kHz costs millions of operations per
+ *    reading, which drops frames and makes the display lurch.
  */
-export function detectPitch(buffer: Float32Array, sampleRate: number): number | null {
-  const size = buffer.length;
+export function detectPitch(buffer: Float32Array, sampleRate: number): Detection | null {
+  const n = buffer.length;
+
+  let mean = 0;
+  for (let i = 0; i < n; i += 1) mean += buffer[i];
+  mean /= n;
 
   let rms = 0;
-  for (let i = 0; i < size; i += 1) rms += buffer[i] * buffer[i];
-  rms = Math.sqrt(rms / size);
+  for (let i = 0; i < n; i += 1) {
+    const v = buffer[i] - mean;
+    rms += v * v;
+  }
+  rms = Math.sqrt(rms / n);
   // Too quiet to be a plucked string; don't chase room noise.
-  if (rms < 0.008) return null;
+  if (rms < 0.005) return null;
 
-  const minLag = Math.max(2, Math.floor(sampleRate / 1300));
-  const maxLag = Math.min(size - 1, Math.floor(sampleRate / 65));
-  if (maxLag <= minLag) return null;
-
-  const corr = new Float32Array(maxLag + 2);
-  for (let lag = minLag; lag <= maxLag; lag += 1) {
+  /* ---- coarse pass on a decimated, DC-removed copy ---- */
+  const m = Math.floor(n / DECIMATE);
+  const small = new Float32Array(m);
+  for (let i = 0; i < m; i += 1) {
     let sum = 0;
-    for (let i = 0; i < size - lag; i += 1) sum += buffer[i] * buffer[i + lag];
-    corr[lag] = sum / (size - lag);
+    for (let k = 0; k < DECIMATE; k += 1) sum += buffer[i * DECIMATE + k] - mean;
+    small[i] = sum / DECIMATE;
   }
 
-  // Walk past the descending shoulder next to lag 0 before looking for the peak.
-  let lag = minLag;
-  while (lag < maxLag && corr[lag] > corr[lag + 1]) lag += 1;
+  const smallRate = sampleRate / DECIMATE;
+  const minLag = Math.max(2, Math.floor(smallRate / MAX_HZ));
+  const maxLag = Math.min(m - 8, Math.floor(smallRate / MIN_HZ));
+  if (maxLag <= minLag + 2) return null;
 
-  let peak = -1;
-  let peakValue = -Infinity;
-  for (; lag <= maxLag; lag += 1) {
-    if (corr[lag] > peakValue) {
-      peakValue = corr[lag];
-      peak = lag;
+  const nac = new Float32Array(maxLag + 2);
+  let strongest = 0;
+  for (let lag = minLag; lag <= maxLag; lag += 1) {
+    let dot = 0;
+    let energyA = 0;
+    let energyB = 0;
+    const count = m - lag;
+    for (let i = 0; i < count; i += 1) {
+      const a = small[i];
+      const b = small[i + lag];
+      dot += a * b;
+      energyA += a * a;
+      energyB += b * b;
+    }
+    const scale = Math.sqrt(energyA * energyB);
+    const value = scale > 0 ? dot / scale : 0;
+    nac[lag] = value;
+    if (value > strongest) strongest = value;
+  }
+
+  if (strongest < 0.5) return null;
+
+  // Earliest local peak within 88% of the strongest, to stay on the fundamental.
+  const threshold = strongest * 0.88;
+  let coarse = -1;
+  for (let lag = minLag + 1; lag < maxLag; lag += 1) {
+    if (nac[lag] >= threshold && nac[lag] >= nac[lag - 1] && nac[lag] >= nac[lag + 1]) {
+      coarse = lag;
+      break;
     }
   }
-  if (peak < 1) return null;
+  if (coarse < 0) return null;
 
-  // Reject weak matches, which are usually noise rather than a note.
-  const energy = rms * rms;
-  if (energy <= 0 || peakValue / energy < 0.35) return null;
+  /* ---- refine at full rate, only around the winner ---- */
+  const centre = coarse * DECIMATE;
+  const lo = Math.max(2, centre - DECIMATE * 2);
+  const hi = Math.min(n - 8, centre + DECIMATE * 2);
 
-  const before = corr[peak - 1] ?? 0;
-  const at = corr[peak];
-  const after = corr[peak + 1] ?? 0;
-  const denominator = 2 * (2 * at - before - after);
+  const fine = new Float32Array(hi - lo + 1);
+  let bestLag = centre;
+  let bestValue = -Infinity;
+  for (let lag = lo; lag <= hi; lag += 1) {
+    let dot = 0;
+    let energyA = 0;
+    let energyB = 0;
+    const count = n - lag;
+    for (let i = 0; i < count; i += 1) {
+      const a = buffer[i] - mean;
+      const b = buffer[i + lag] - mean;
+      dot += a * b;
+      energyA += a * a;
+      energyB += b * b;
+    }
+    const scale = Math.sqrt(energyA * energyB);
+    const value = scale > 0 ? dot / scale : 0;
+    fine[lag - lo] = value;
+    if (value > bestValue) {
+      bestValue = value;
+      bestLag = lag;
+    }
+  }
+
+  // Sub-sample accuracy. Without this, cents resolution on the high strings is
+  // far too coarse to tune by.
+  const at = bestLag - lo;
+  const before = at > 0 ? fine[at - 1] : bestValue;
+  const after = at < fine.length - 1 ? fine[at + 1] : bestValue;
+  const denominator = 2 * (2 * bestValue - before - after);
   const shift = denominator !== 0 ? (after - before) / denominator : 0;
-  const period = peak + Math.max(-1, Math.min(1, shift));
+  const period = bestLag + Math.max(-1, Math.min(1, shift));
 
   const hz = sampleRate / period;
-  return hz >= 60 && hz <= 1300 ? hz : null;
+  if (hz < MIN_HZ || hz > MAX_HZ) return null;
+  return { hz, confidence: bestValue };
 }
 
 export interface Reading {
@@ -97,9 +181,10 @@ export function describePitch(hz: number): Reading {
   return { hz, note, cents, nearestString };
 }
 
-/** Median of the recent readings — a plucked note wavers as it decays. */
-export function steadyHz(history: number[]): number | null {
-  if (history.length < 3) return null;
-  const sorted = [...history].sort((a, b) => a - b);
-  return sorted[Math.floor(sorted.length / 2)];
+/** Median, which throws out the odd rogue reading a mean would average in. */
+export function median(values: number[]): number | null {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }

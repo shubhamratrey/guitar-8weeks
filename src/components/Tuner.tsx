@@ -1,13 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { describePitch, detectPitch, OPEN_STRINGS, steadyHz, type Reading } from "@/lib/pitch";
+import { describePitch, detectPitch, median, OPEN_STRINGS, type Reading } from "@/lib/pitch";
 
 type State = "idle" | "asking" | "listening" | "denied" | "unsupported";
 
 const IN_TUNE_CENTS = 5;
+/** 20 readings a second. Faster just re-analyses overlapping audio and jitters. */
+const ANALYSE_MS = 50;
+const CONFIDENCE_FLOOR = 0.55;
+/** Readings kept for the median — a quarter-second of history. */
+const WINDOW = 5;
+/** Needle smoothing. Lower is calmer but lags further behind your hand. */
+const SMOOTHING = 0.3;
+/** Consecutive agreeing readings before the note name is allowed to change. */
+const NOTE_HOLD = 3;
 
-/** Chromatic tuner off the microphone. */
 export function Tuner() {
   const [state, setState] = useState<State>("idle");
   const [reading, setReading] = useState<Reading | null>(null);
@@ -15,21 +23,29 @@ export function Tuner() {
   const ctxRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
-  // Explicit ArrayBuffer: getFloatTimeDomainData won't accept the
-  // SharedArrayBuffer-capable default.
+  // Explicit ArrayBuffer: getFloatTimeDomainData won't take the
+  // SharedArrayBuffer-capable default type.
   const bufferRef = useRef<Float32Array<ArrayBuffer> | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const historyRef = useRef<number[]>([]);
-  const rafRef = useRef(0);
+  const smoothCentsRef = useRef<number | null>(null);
+  const noteRef = useRef<string | null>(null);
+  const candidateRef = useRef<{ note: string; count: number } | null>(null);
   const quietRef = useRef(0);
 
   const stop = useCallback(() => {
-    cancelAnimationFrame(rafRef.current);
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = null;
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     void ctxRef.current?.close();
     ctxRef.current = null;
     analyserRef.current = null;
     historyRef.current = [];
+    smoothCentsRef.current = null;
+    noteRef.current = null;
+    candidateRef.current = null;
     setReading(null);
     setState("idle");
   }, []);
@@ -46,8 +62,7 @@ export function Tuner() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          // All of these would fight a tuner: they reshape the very signal
-          // we're trying to measure.
+          // Each of these reshapes the very signal being measured.
           echoCancellation: false,
           noiseSuppression: false,
           autoGainControl: false,
@@ -57,42 +72,83 @@ export function Tuner() {
 
       const ctx = new AudioContext();
       ctxRef.current = ctx;
-      const source = ctx.createMediaStreamSource(stream);
       const analyser = ctx.createAnalyser();
-      analyser.fftSize = 4096;
-      source.connect(analyser);
+      // ~186ms at 44.1kHz: enough cycles of the low E to lock onto.
+      analyser.fftSize = 8192;
+      ctx.createMediaStreamSource(stream).connect(analyser);
       analyserRef.current = analyser;
       bufferRef.current = new Float32Array(analyser.fftSize);
 
       setState("listening");
 
-      const tick = () => {
+      timerRef.current = setInterval(() => {
         const node = analyserRef.current;
         const buffer = bufferRef.current;
         if (!node || !buffer) return;
 
         node.getFloatTimeDomainData(buffer);
-        const hz = detectPitch(buffer, ctx.sampleRate);
+        const found = detectPitch(buffer, ctx.sampleRate);
 
-        if (hz) {
-          quietRef.current = 0;
-          historyRef.current.push(hz);
-          if (historyRef.current.length > 8) historyRef.current.shift();
-          const steady = steadyHz(historyRef.current);
-          if (steady) setReading(describePitch(steady));
-        } else {
-          // Hold the last reading briefly so it doesn't flicker as a note decays.
+        if (!found || found.confidence < CONFIDENCE_FLOOR) {
           quietRef.current += 1;
-          if (quietRef.current > 45) {
+          // Hold the last reading for about a second so it doesn't blank out
+          // between plucks or as a note decays.
+          if (quietRef.current > 20) {
             historyRef.current = [];
+            smoothCentsRef.current = null;
+            noteRef.current = null;
+            candidateRef.current = null;
             setReading(null);
           }
+          return;
         }
 
-        rafRef.current = requestAnimationFrame(tick);
-      };
+        quietRef.current = 0;
+        historyRef.current.push(found.hz);
+        if (historyRef.current.length > WINDOW) historyRef.current.shift();
 
-      rafRef.current = requestAnimationFrame(tick);
+        const steady = median(historyRef.current);
+        if (steady === null) return;
+
+        const next = describePitch(steady);
+
+        /*
+         * Note-name hysteresis. Right between two notes the raw reading flips
+         * back and forth; requiring agreement before switching stops the big
+         * letter flickering while you turn the peg.
+         */
+        if (noteRef.current === null) {
+          noteRef.current = next.note;
+          candidateRef.current = null;
+        } else if (next.note !== noteRef.current) {
+          const candidate = candidateRef.current;
+          if (candidate?.note === next.note) {
+            candidate.count += 1;
+            if (candidate.count >= NOTE_HOLD) {
+              noteRef.current = next.note;
+              candidateRef.current = null;
+              smoothCentsRef.current = next.cents;
+            }
+          } else {
+            candidateRef.current = { note: next.note, count: 1 };
+          }
+        } else {
+          candidateRef.current = null;
+        }
+
+        // Exponential smoothing on the needle only; the numbers stay honest.
+        const previous = smoothCentsRef.current;
+        const smoothed =
+          previous === null ? next.cents : previous + (next.cents - previous) * SMOOTHING;
+        smoothCentsRef.current = smoothed;
+
+        setReading({
+          hz: steady,
+          note: noteRef.current ?? next.note,
+          cents: Math.round(smoothed),
+          nearestString: next.nearestString,
+        });
+      }, ANALYSE_MS);
     } catch {
       setState("denied");
     }
@@ -100,7 +156,6 @@ export function Tuner() {
 
   const cents = reading?.cents ?? 0;
   const inTune = reading !== null && Math.abs(cents) <= IN_TUNE_CENTS;
-  // -50..+50 cents mapped across the dial.
   const needle = Math.max(-50, Math.min(50, cents));
 
   return (
@@ -116,9 +171,7 @@ export function Tuner() {
         <button
           onClick={() => (state === "listening" ? stop() : listen())}
           className={`shrink-0 px-3.5 py-2.5 text-[12.5px] font-semibold ${
-            state === "listening"
-              ? "rounded-md border border-line text-muted"
-              : "btn-brand"
+            state === "listening" ? "rounded-md border border-line text-muted" : "btn-brand"
           }`}
         >
           {state === "listening" ? "■ Stop" : state === "asking" ? "…" : "Turn on mic"}
@@ -133,14 +186,13 @@ export function Tuner() {
       )}
       {state === "unsupported" && (
         <p className="text-[12.5px] leading-relaxed text-heat">
-          This browser won&apos;t give a page microphone access. The reference tones on the
-          Today screen still work for tuning by ear.
+          This browser won&apos;t give a page microphone access. The reference tones in the
+          metronome panel still work for tuning by ear.
         </p>
       )}
 
       {state === "listening" && (
         <>
-          {/* the dial */}
           <div className="relative h-24 overflow-hidden rounded-md border border-line-soft bg-ink/60">
             <div className="absolute inset-y-0 left-1/2 w-px bg-line" aria-hidden />
             {[-50, -25, 25, 50].map((mark) => (
@@ -154,11 +206,10 @@ export function Tuner() {
 
             {reading && (
               <div
-                className="absolute inset-y-2 w-[3px] rounded-full transition-[left] duration-75"
+                className="absolute inset-y-2 w-[3px] rounded-full transition-[left,background] duration-150 ease-out"
                 style={{
                   left: `calc(${50 + needle}% - 1.5px)`,
                   background: inTune ? "var(--color-good)" : "var(--color-amber)",
-                  boxShadow: `0 0 10px 1px ${inTune ? "var(--color-good)" : "var(--color-amber)"}`,
                 }}
                 aria-hidden
               />
@@ -166,17 +217,18 @@ export function Tuner() {
 
             <div className="absolute inset-x-0 bottom-2 flex justify-between px-3 text-[10px] text-dim">
               <span>flat ♭</span>
-              <span>{reading ? `${cents > 0 ? "+" : ""}${cents} cents` : "listening…"}</span>
+              <span>
+                {reading ? `${cents > 0 ? "+" : ""}${cents} cents` : "play a string…"}
+              </span>
               <span>♯ sharp</span>
             </div>
           </div>
 
-          {/* what it heard */}
           <div className="flex items-end justify-between gap-4">
             <div>
               <p className="legend">Hearing</p>
               <p
-                className="display text-[38px] leading-none"
+                className="display text-[38px] leading-none transition-colors"
                 style={{ color: inTune ? "var(--color-good)" : "var(--color-text)" }}
               >
                 {reading ? reading.note : "—"}
@@ -187,7 +239,6 @@ export function Tuner() {
             )}
           </div>
 
-          {/* which string it's closest to */}
           <div className="flex gap-1.5">
             {OPEN_STRINGS.map((string, i) => {
               const active = reading?.nearestString === i;
@@ -208,8 +259,9 @@ export function Tuner() {
             })}
           </div>
           <p className="text-[11.5px] leading-relaxed text-dim">
-            Tuning up to the note holds better than tuning down to it — if you&apos;re
-            sharp, drop below and come back up.
+            Pluck once and let it ring rather than playing repeatedly — the reading settles
+            after about half a second. Tuning up to a note holds better than tuning down to
+            it.
           </p>
         </>
       )}
